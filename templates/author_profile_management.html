@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Author Profile Management - Smileys Blog{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard-header">
+        <h1>Author Profile Management</h1>
+        <div class="breadcrumb">
+            <a href="{{ url_for('dashboard') }}">Dashboard</a> → Author Profile
+        </div>
+    </div>
+    
+    <div class="profile-management-container">
+        <!-- Current Profile Preview -->
+        <div class="profile-preview card">
+            <h2>Current Profile</h2>
+            <div class="profile-preview-content">
+                {% if profile_image_url %}
+                <div class="current-image">
+                    <img src="{{ profile_image_url }}" alt="{{ profile.name }}" class="profile-preview-image">
+                    <form method="post" action="{{ url_for('delete_profile_image') }}" style="margin-top: 0.5rem;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn danger small" onclick="return confirm('Delete profile image?')">
+                            Delete Image
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="no-image">
+                    <div class="no-image-placeholder">No profile image</div>
+                </div>
+                {% endif %}
+                
+                <div class="profile-info">
+                    <h3>{{ profile.name }}</h3>
+                    <p class="bio-preview">{{ profile.bio[:100] }}{% if profile.bio|length > 100 %}...{% endif %}</p>
+                    
+                    {% if social_links %}
+                    <div class="social-preview">
+                        <strong>Social Links:</strong>
+                        {% for platform, url in social_links.items() %}
+                        <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ platform }}</a>
+                        {% if not loop.last %} · {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="profile-actions">
+                        <a href="{{ url_for('about') }}" class="btn" target="_blank">View Public About Page</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Profile Statistics -->
+        <div class="profile-stats card">
+            <h3>Profile Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Profile Created</span>
+                    <span class="stat-value">{{ profile_stats.profile_created.strftime('%B %d, %Y') }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Last Updated</span>
+                    <span class="stat-value">{{ profile_stats.profile_updated.strftime('%B %d, %Y') }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Expertise Areas</span>
+                    <span class="stat-value">{{ profile_stats.expertise_count }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Social Links</span>
+                    <span class="stat-value">{{ profile_stats.social_links_count }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Profile Form -->
+        <div class="profile-form card">
+            <h2>Edit Profile</h2>
+            <form method="post" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                
+                <div class="form-section">
+                    <h3>Basic Information</h3>
+                    
+                    <div class="form-group">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                        {% if form.name.errors %}
+                        <div class="form-errors">
+                            {% for error in form.name.errors %}
+                            <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control") }}
+                        {% if form.email.errors %}
+                        <div class="form-errors">
+                            {% for error in form.email.errors %}
+                            <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.profile_image.label(class="form-label") }}
+                        {{ form.profile_image(class="form-control") }}
+                        {% if form.profile_image.description %}
+                        <small class="form-help">{{ form.profile_image.description }}</small>
+                        {% endif %}
+                        {% if form.profile_image.errors %}
+                        <div class="form-errors">
+                            {% for error in form.profile_image.errors %}
+                            <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h3>About You</h3>
+                    
+                    <div class="form-group">
+                        {{ form.bio.label(class="form-label") }}
+                        {{ form.bio(class="form-control", rows="4") }}
+                        {% if form.bio.description %}
+                        <small class="form-help">{{ form.bio.description }}</small>
+                        {% endif %}
+                        {% if form.bio.errors %}
+                        <div class="form-errors">
+                            {% for error in form.bio.errors %}
+                            <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.mission_statement.label(class="form-label") }}
+                        {{ form.mission_statement(class="form-control", rows="3") }}
+                        {% if form.mission_statement.description %}
+                        <small class="form-help">{{ form.mission_statement.description }}</small>
+                        {% endif %}
+                        {% if form.mission_statement.errors %}
+                        <div class="form-errors">
+                            {% for error in form.mission_statement.errors %}
+                            <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.expertise_areas.label(class="form-label") }}
+                        {{ form.expertise_areas(class="form-control") }}
+                        {% if form.expertise_areas.description %}
+                        <small class="form-help">{{ form.expertise_areas.description }}</small>
+                        {% endif %}
+                        {% if form.expertise_areas.errors %}
+                        <div class="form-errors">
+                            {% for error in form.expertise_areas.errors %}
+                            <span class="error">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h3>Social Media & Links</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.twitter_handle.label(class="form-label") }}
+                            {{ form.twitter_handle(class="form-control") }}
+                            {% if form.twitter_handle.description %}
+                            <small class="form-help">{{ form.twitter_handle.description }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.linkedin_url.label(class="form-label") }}
+                            {{ form.linkedin_url(class="form-control") }}
+                            {% if form.linkedin_url.description %}
+                            <small class="form-help">{{ form.linkedin_url.description }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.github_url.label(class="form-label") }}
+                            {{ form.github_url(class="form-control") }}
+                            {% if form.github_url.description %}
+                            <small class="form-help">{{ form.github_url.description }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.website_url.label(class="form-label") }}
+                            {{ form.website_url(class="form-control") }}
+                            {% if form.website_url.description %}
+                            <small class="form-help">{{ form.website_url.description }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn primary">Update Profile</button>
+                    <a href="{{ url_for('dashboard') }}" class="btn">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    color: #333;
+}
+
+.breadcrumb {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.breadcrumb a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.profile-management-container {
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+        "preview stats"
+        "form form";
+}
+
+.profile-preview {
+    grid-area: preview;
+}
+
+.profile-stats {
+    grid-area: stats;
+}
+
+.profile-form {
+    grid-area: form;
+}
+
+.profile-preview-content {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.current-image {
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.profile-preview-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #dee2e6;
+}
+
+.no-image-placeholder {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #666;
+    text-align: center;
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-info h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    color: #333;
+}
+
+.bio-preview {
+    color: #666;
+    margin: 0 0 1rem 0;
+    line-height: 1.5;
+}
+
+.social-preview {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.social-preview a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.social-preview a:hover {
+    text-decoration: underline;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 1rem;
+    color: #333;
+    font-weight: 600;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 1rem;
+}
+
+.form-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 600;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    outline: 0;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-help {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.form-errors {
+    margin-top: 0.25rem;
+}
+
+.error {
+    display: block;
+    font-size: 0.875rem;
+    color: #dc3545;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn.small {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .profile-management-container {
+        grid-template-columns: 1fr;
+        grid-template-areas: 
+            "preview"
+            "stats"
+            "form";
+    }
+    
+    .profile-preview-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

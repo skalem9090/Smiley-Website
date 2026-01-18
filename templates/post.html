@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ post.title }} - Smileys Blog{% endblock %}
+
+{% block content %}
+<section class="container">
+  <article class="card post-article">
+    <header style="margin-bottom:1.5rem">
+      <h1 style="margin:0 0 0.8rem 0">{{ post.title }}</h1>
+      <div class="meta" style="color:#666; font-size:0.9em; margin-bottom:1rem;">
+        {% if post.category %}
+          <span style="text-transform:capitalize; font-weight:500;">{{ post.category }}</span> · 
+        {% endif %}
+        {% if post.published_at %}
+          Published {{ post.published_at.strftime('%B %d, %Y at %H:%M') }}
+        {% elif post.status == 'scheduled' and post.scheduled_publish_at %}
+          Scheduled for {{ post.scheduled_publish_at.strftime('%B %d, %Y at %H:%M') }}
+        {% else %}
+          Created {{ post.created_at.strftime('%B %d, %Y at %H:%M') }}
+        {% endif %}
+        {% if post.status != 'published' %}
+          · <span style="color:#dc3545; font-weight:500;">{{ post.status|title }}</span>
+        {% endif %}
+      </div>
+      
+      {% if post.summary %}
+        <div class="post-summary" style="font-size:1.1em; color:#495057; font-style:italic; margin-bottom:1rem; padding:1rem; background:#f8f9fa; border-left:4px solid #007bff; border-radius:0 4px 4px 0;">
+          {{ post.summary }}
+        </div>
+      {% endif %}
+      
+      {% if post.tag_relationships %}
+        <div class="post-tags" style="margin-bottom:1rem;">
+          <span style="color:#666; font-size:0.9em; margin-right:0.5rem;">Tags:</span>
+          {% for tag_rel in post.tag_relationships %}
+            <a href="{{ url_for('tag_posts', slug=tag_rel.tag.slug) }}" 
+               class="tag-link" 
+               style="display:inline-block; margin:0.2rem 0.3rem 0.2rem 0; padding:0.2rem 0.6rem; background:#e9ecef; border-radius:12px; text-decoration:none; color:#495057; font-size:0.8em; transition:background 0.2s;"
+               onmouseover="this.style.background='#dee2e6';"
+               onmouseout="this.style.background='#e9ecef';">
+              {{ tag_rel.tag.name }}
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </header>
+    
+    <div class="post-content" style="line-height:1.7;">
+      {{ post.content|safe }}
+    </div>
+    
+    <!-- Author Bio Section -->
+    <div class="author-bio-section" style="margin-top:2rem; padding:1.5rem; background:#f8f9fa; border-radius:8px; border-left:4px solid #007bff;">
+      <h3 style="margin:0 0 1rem 0; font-size:1.2rem; color:#333;">About the Author</h3>
+      <div class="author-bio-content" style="display:flex; gap:1rem; align-items:flex-start;">
+        {% if author_profile and author_profile.profile_image %}
+        <div class="author-avatar" style="flex-shrink:0;">
+          <img src="/images/{{ author_profile.profile_image }}" 
+               alt="{{ author_profile.name }}" 
+               style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #dee2e6;">
+        </div>
+        {% endif %}
+        
+        <div class="author-info" style="flex:1;">
+          {% if author_profile %}
+            <h4 style="margin:0 0 0.5rem 0; font-size:1.1rem; color:#333;">{{ author_profile.name }}</h4>
+            <p style="margin:0 0 0.75rem 0; color:#666; font-size:0.95rem; line-height:1.5;">{{ author_profile.bio }}</p>
+            
+            {% if social_links %}
+            <div class="author-social" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+              {% for platform, url in social_links.items() %}
+              <a href="{{ url }}" target="_blank" rel="noopener noreferrer" 
+                 style="font-size:0.85rem; color:#007bff; text-decoration:none; padding:0.25rem 0.5rem; background:#e7f3ff; border-radius:4px; transition:background 0.2s;"
+                 onmouseover="this.style.background='#cce7ff';"
+                 onmouseout="this.style.background='#e7f3ff';">
+                {{ platform }}
+              </a>
+              {% endfor %}
+            </div>
+            {% endif %}
+          {% else %}
+            <h4 style="margin:0 0 0.5rem 0; font-size:1.1rem; color:#333;">Blog Author</h4>
+            <p style="margin:0; color:#666; font-size:0.95rem;">Welcome to Smileys Blog! I write about wealth, health, and happiness.</p>
+          {% endif %}
+          
+          <div style="margin-top:0.75rem;">
+            <a href="{{ url_for('about') }}" 
+               style="font-size:0.9rem; color:#007bff; text-decoration:none; font-weight:500;"
+               onmouseover="this.style.textDecoration='underline';"
+               onmouseout="this.style.textDecoration='none';">
+              Learn more about the author →
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    {% if current_user.is_authenticated and current_user.is_admin %}
+      <footer style="margin-top:2rem; padding-top:1rem; border-top:1px solid #dee2e6;">
+        <div class="admin-actions">
+          <a class="btn" href="{{ url_for('edit_post', post_id=post.id) }}">Edit Post</a>
+          <form method="post" action="{{ url_for('delete_post', post_id=post.id) }}" style="display:inline; margin-left:0.5rem;" onsubmit="return confirm('Delete this post?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn danger" type="submit">Delete</button>
+          </form>
+        </div>
+      </footer>
+    {% endif %}
+  </article>
+  
+  <div style="margin-top:1rem; text-align:center;">
+    <a class="btn" href="{{ url_for('explore') }}">← Back to Explore</a>
+  </div>
+</section>
+
+{% endblock %}

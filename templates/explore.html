@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Explore - Smileys Blog{% endblock %}
+
+{% block content %}
+<section class="container">
+  <div class="card">
+    <h2>Explore Posts</h2>
+    <form method="get" class="form-actions">
+      <div class="form-row">
+        <input class="form-control" name="q" placeholder="Search posts..." value="{{ q }}">
+        <select class="form-control" name="category">
+          <option value="">All Categories</option>
+          <option value="wealth" {% if request.args.get('category') == 'wealth' %}selected{% endif %}>Wealth</option>
+          <option value="health" {% if request.args.get('category') == 'health' %}selected{% endif %}>Health</option>
+          <option value="happiness" {% if request.args.get('category') == 'happiness' %}selected{% endif %}>Happiness</option>
+        </select>
+        <input class="form-control" name="tag" placeholder="Tag..." value="{{ request.args.get('tag', '') }}">
+        <button class="btn btn-primary" type="submit">Search</button>
+      </div>
+    </form>
+    
+    {% if request.args.get('q') or request.args.get('category') or request.args.get('tag') %}
+      <div style="margin-top:0.8rem;">
+        <span style="color:#666; font-size:0.9em;">
+          Showing results for:
+          {% if request.args.get('q') %}
+            <strong>"{{ request.args.get('q') }}"</strong>
+          {% endif %}
+          {% if request.args.get('category') %}
+            {% if request.args.get('q') %} in {% endif %}
+            <strong>{{ request.args.get('category')|title }}</strong>
+          {% endif %}
+          {% if request.args.get('tag') %}
+            {% if request.args.get('q') or request.args.get('category') %} with tag {% endif %}
+            <strong>#{{ request.args.get('tag') }}</strong>
+          {% endif %}
+        </span>
+        <a href="{{ url_for('explore') }}" style="margin-left:1rem; font-size:0.9em;">Clear filters</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:1rem">
+    {% if posts %}
+      <div class="post-list">
+      {% for p in posts %}
+        <article class="post-card">
+          <div class="title"><a href="{{ url_for('post_view', post_id=p.id) }}">{{ p.title }}</a></div>
+          <div class="meta">
+            {% if p.published_at %}
+              {{ p.published_at.strftime('%B %d, %Y') }}
+            {% else %}
+              {{ p.created_at.strftime('%B %d, %Y') }}
+            {% endif %}
+            {% if p.category %} · {{ p.category|title }}{% endif %}
+          </div>
+          <div class="excerpt muted">
+            {% if p.summary %}
+              {{ p.summary }}
+            {% else %}
+              {{ (p.content|striptags)[:150] }}{% if p.content|length > 150 %}...{% endif %}
+            {% endif %}
+          </div>
+          
+          {% if p.tag_relationships %}
+            <div class="post-tags" style="margin-top:0.5rem;">
+              {% for tag_rel in p.tag_relationships %}
+                <a href="{{ url_for('tag_posts', slug=tag_rel.tag.slug) }}" 
+                   class="tag-link" 
+                   style="display:inline-block; margin:0.2rem 0.3rem 0.2rem 0; padding:0.2rem 0.5rem; background:#f8f9fa; border-radius:10px; text-decoration:none; color:#6c757d; font-size:0.75em; transition:background 0.2s;"
+                   onmouseover="this.style.background='#e9ecef';"
+                   onmouseout="this.style.background='#f8f9fa';">
+                  {{ tag_rel.tag.name }}
+                </a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </article>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="card">
+        <p class="muted">
+          {% if request.args.get('q') or request.args.get('category') or request.args.get('tag') %}
+            No posts found matching your search criteria.
+          {% else %}
+            No posts found.
+          {% endif %}
+        </p>
+        {% if request.args.get('q') or request.args.get('category') or request.args.get('tag') %}
+          <a href="{{ url_for('explore') }}" class="btn">View All Posts</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+  
+  <div style="margin-top:1rem; text-align:center;">
+    <a class="btn" href="{{ url_for('tag_list') }}">Browse by Tags</a>
+  </div>
+</section>
+
+{% endblock %}

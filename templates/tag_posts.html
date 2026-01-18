@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tag.name }} - Smileys Blog{% endblock %}
+
+{% block content %}
+<section class="container">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <div>
+        <h2>Posts tagged "{{ tag.name }}"</h2>
+        <p class="muted">{{ posts|length }} post{{ 's' if posts|length != 1 else '' }} found</p>
+      </div>
+      <div>
+        <a class="btn" href="{{ url_for('tag_list') }}">All Tags</a>
+        <a class="btn" href="{{ url_for('explore') }}">← Explore</a>
+      </div>
+    </div>
+    
+    {% if posts %}
+      <div class="posts-list">
+        {% for post in posts %}
+          <article class="post-card" style="margin-bottom:1.5rem; padding:1rem; border:1px solid #dee2e6; border-radius:4px;">
+            <header>
+              <h3 style="margin:0 0 0.5rem 0;">
+                <a href="{{ url_for('post_view', post_id=post.id) }}" style="text-decoration:none; color:#333;">
+                  {{ post.title }}
+                </a>
+              </h3>
+              <div class="post-meta" style="font-size:0.9em; color:#666; margin-bottom:1rem;">
+                {% if post.category %}
+                  <span style="text-transform:capitalize;">{{ post.category }}</span> · 
+                {% endif %}
+                {% if post.published_at %}
+                  Published {{ post.published_at.strftime('%B %d, %Y') }}
+                {% else %}
+                  {{ post.created_at.strftime('%B %d, %Y') }}
+                {% endif %}
+              </div>
+            </header>
+            
+            {% if post.summary %}
+              <div class="post-excerpt" style="margin-bottom:1rem; line-height:1.6;">
+                {{ post.summary }}
+              </div>
+            {% endif %}
+            
+            <footer>
+              <a href="{{ url_for('post_view', post_id=post.id) }}" class="btn" style="font-size:0.9em;">
+                Read More →
+              </a>
+            </footer>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div style="text-align:center; padding:3rem; color:#666;">
+        <div style="font-size:3rem; margin-bottom:1rem;">📝</div>
+        <h3>No posts found</h3>
+        <p>There are no published posts with the tag "{{ tag.name }}" yet.</p>
+        <a class="btn" href="{{ url_for('explore') }}">Browse All Posts</a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

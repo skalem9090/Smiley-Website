@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Tags - Smileys Blog{% endblock %}
+
+{% block content %}
+<section class="container">
+  <div class="card">
+    <h2>All Tags</h2>
+    <p class="muted">Browse posts by topic</p>
+    
+    {% if tags %}
+      <div class="tag-cloud" style="margin-top:1.5rem;">
+        {% for tag_data in tags %}
+          <a href="{{ url_for('tag_posts', slug=tag_data.slug) }}" 
+             class="tag-link" 
+             style="display:inline-block; margin:0.3rem 0.5rem 0.3rem 0; padding:0.4rem 0.8rem; background:#f8f9fa; border:1px solid #dee2e6; border-radius:20px; text-decoration:none; color:#495057; font-size:0.9em; transition:all 0.2s;"
+             onmouseover="this.style.background='#e9ecef'; this.style.borderColor='#adb5bd';"
+             onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#dee2e6';">
+            {{ tag_data.name }}
+            <span style="color:#6c757d; font-size:0.8em;">({{ tag_data.post_count }})</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div style="text-align:center; padding:3rem; color:#666;">
+        <div style="font-size:3rem; margin-bottom:1rem;">🏷️</div>
+        <h3>No tags yet</h3>
+        <p>Tags will appear here as posts are created and tagged.</p>
+      </div>
+    {% endif %}
+  </div>
+  
+  <div style="margin-top:1rem; text-align:center;">
+    <a class="btn" href="{{ url_for('explore') }}">← Back to Explore</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - Smileys Blog{% endblock %}
+
+{% block content %}
+<h2>Developer Login</h2>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <label>{{ form.username.label }}<br>{{ form.username(size=32) }}</label><br>
+  <label>{{ form.password.label }}<br>{{ form.password(type='password') }}</label><br>
+  <button type="submit">Login</button>
+</form>
+{% endblock %}

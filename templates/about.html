@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}About - Smileys Blog{% endblock %}
+
+{% block content %}
+<div class="container">
+    <article class="about-page">
+        <header class="about-header">
+            <h1>About</h1>
+        </header>
+        
+        <div class="about-content">
+            <div class="author-profile">
+                {% if profile_image_url %}
+                <div class="author-image">
+                    <img src="{{ profile_image_url }}" alt="{{ profile.name }}" class="profile-photo">
+                </div>
+                {% endif %}
+                
+                <div class="author-info">
+                    <h2>{{ profile.name }}</h2>
+                    
+                    <div class="author-bio">
+                        <h3>About Me</h3>
+                        <p>{{ profile.bio }}</p>
+                    </div>
+                    
+                    <div class="mission-statement">
+                        <h3>Mission</h3>
+                        <p>{{ profile.mission_statement }}</p>
+                    </div>
+                    
+                    {% if profile.get_expertise_areas() %}
+                    <div class="expertise-areas">
+                        <h3>Areas of Expertise</h3>
+                        <ul class="expertise-list">
+                            {% for area in profile.get_expertise_areas() %}
+                            <li>{{ area }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    {% if social_links %}
+                    <div class="social-links">
+                        <h3>Connect With Me</h3>
+                        <ul class="social-list">
+                            {% for platform, url in social_links.items() %}
+                            <li>
+                                <a href="{{ url }}" target="_blank" rel="noopener noreferrer">
+                                    {{ platform }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="contact-info">
+                        <h3>Get In Touch</h3>
+                        <p>
+                            Feel free to reach out to me at 
+                            <a href="mailto:{{ profile.email }}">{{ profile.email }}</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+</div>
+
+<style>
+.about-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.about-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.about-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+.author-profile {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.author-image {
+    flex-shrink: 0;
+}
+
+.profile-photo {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #f0f0f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.author-info {
+    flex: 1;
+}
+
+.author-info h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 1.5rem 0;
+}
+
+.author-info h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+    margin: 2rem 0 0.75rem 0;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 0.5rem;
+}
+
+.author-info h3:first-of-type {
+    margin-top: 0;
+}
+
+.author-bio p,
+.mission-statement p,
+.contact-info p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #555;
+    margin: 0 0 1rem 0;
+}
+
+.expertise-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.expertise-list li {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    color: #666;
+    border: 1px solid #e9ecef;
+}
+
+.social-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.social-list li a {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.social-list li a:hover {
+    background: #0056b3;
+}
+
+.contact-info a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.contact-info a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .author-profile {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .profile-photo {
+        width: 150px;
+        height: 150px;
+        margin: 0 auto;
+    }
+    
+    .about-header h1 {
+        font-size: 2rem;
+    }
+    
+    .author-info h2 {
+        font-size: 1.75rem;
+    }
+    
+    .social-list {
+        justify-content: center;
+    }
+    
+    .expertise-list {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .about-page {
+        padding: 1rem 0.5rem;
+    }
+    
+    .social-list {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .social-list li a {
+        display: block;
+        text-align: center;
+        min-width: 120px;
+    }
+}
+</style>
+{% endblock %}

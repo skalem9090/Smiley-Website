@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Smileys Blog{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- RSS/Atom Feed Discovery Links -->
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/feed.xml">
+    <link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/atom.xml">>
+  </head>
+  <body>
+    <nav class="main-nav">
+      <div class="nav-left">
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('about') }}">About</a>
+        <a href="{{ url_for('explore') }}">Explore</a>
+        <a href="{{ url_for('tag_list') }}">Tags</a>
+      </div>
+      <div class="nav-right">
+        <div class="dropdown" tabindex="0" aria-haspopup="true">
+          <button class="dropbtn">Menu ▾</button>
+          <div class="dropdown-content" role="menu">
+            {% if current_user.is_authenticated %}
+              <a role="menuitem" href="{{ url_for('dashboard') }}">Dashboard</a>
+              <a role="menuitem" href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+              {# intentionally hide developer login from the primary menu to avoid drawing attention #}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </nav>
+    <main>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flashes">
+          {% for category, msg in messages %}
+            <li class="{{ category }}">{{ msg }}</li>
+          {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div class="footer-info muted">© 2026 Smileys Blog · Short essays and practical tips about wealth, health &amp; happiness</div>
+        <div class="footer-actions">
+          <a class="dev-link" href="{{ url_for('login') }}" title="Developer login" aria-label="Developer login">·</a>
+        </div>
+      </div>
+    </footer>
+    <script>
+    // Make menu dropdown toggleable by click (helps when editor steals focus)
+    (function(){
+      document.addEventListener('click', function(e){
+        var btn = e.target.closest('.dropbtn');
+        // close other open dropdowns if clicking a button
+        if(btn){
+          var parent = btn.closest('.dropdown');
+          var open = document.querySelectorAll('.dropdown.open');
+          open.forEach(function(d){ if(d !== parent) d.classList.remove('open'); });
+          var isOpen = parent.classList.toggle('open');
+          btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          return;
+        }
+        // click outside: close all dropdowns
+        if(!e.target.closest('.dropdown')){
+          document.querySelectorAll('.dropdown.open').forEach(function(d){
+            d.classList.remove('open');
+            var b = d.querySelector('.dropbtn'); if(b) b.setAttribute('aria-expanded','false');
+          });
+        }
+      });
+      // close on Escape
+      document.addEventListener('keydown', function(e){ if(e.key === 'Escape') document.querySelectorAll('.dropdown.open').forEach(function(d){ d.classList.remove('open'); var b=d.querySelector('.dropbtn'); if(b) b.setAttribute('aria-expanded','false'); }); });
+    })();
+    </script>
+{% block scripts %}{% endblock %}
+  </body>
+</html>

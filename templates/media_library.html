@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block title %}Media Library - Smileys Blog{% endblock %}
+
+{% block content %}
+<section class="container">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <h2>Media Library</h2>
+      <div>
+        <a class="btn" href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
+        <button class="btn btn-primary" onclick="document.getElementById('upload-input').click()">Upload Images</button>
+      </div>
+    </div>
+    
+    <!-- Hidden file input for uploads -->
+    <input type="file" id="upload-input" multiple accept="image/*" style="display:none;" onchange="handleFileUpload(this)">
+    
+    <!-- Upload progress -->
+    <div id="upload-progress" style="display:none; margin-bottom:1rem;">
+      <div style="background:#f8f9fa; padding:1rem; border-radius:4px;">
+        <div style="font-weight:bold; margin-bottom:0.5rem;">Uploading images...</div>
+        <div style="background:#e9ecef; height:8px; border-radius:4px; overflow:hidden;">
+          <div id="progress-bar" style="background:#007bff; height:100%; width:0%; transition:width 0.3s;"></div>
+        </div>
+        <div id="upload-status" style="margin-top:0.5rem; font-size:0.9em; color:#666;"></div>
+      </div>
+    </div>
+    
+    {% if images %}
+      <div class="media-stats" style="margin-bottom:1rem; padding:0.8rem; background:#f8f9fa; border-radius:4px;">
+        <div style="display:flex; gap:2rem; flex-wrap:wrap;">
+          <div><strong>{{ images|length }}</strong> images</div>
+          <div><strong>{{ (images|sum(attribute='file_size') / 1024 / 1024)|round(1) }}</strong> MB total</div>
+          <div>
+            <label style="font-weight:bold;">
+              <input type="checkbox" id="select-all-images" style="margin-right:0.5rem;">
+              Select All
+            </label>
+          </div>
+          <div>
+            <button class="btn danger" id="delete-selected-btn" disabled onclick="deleteSelectedImages()">Delete Selected</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="media-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:1rem;">
+        {% for image in images %}
+          <div class="media-item" data-image-id="{{ image.id }}" style="border:1px solid #ddd; border-radius:4px; overflow:hidden; background:#fff;">
+            <div style="position:relative;">
+              <input type="checkbox" class="image-checkbox" value="{{ image.id }}" style="position:absolute; top:8px; left:8px; z-index:2;">
+              <img src="{{ image.url }}" alt="{{ image.original_name }}" 
+                   style="width:100%; height:150px; object-fit:cover; cursor:pointer;"
+                   onclick="openImageModal('{{ image.url }}', '{{ image.original_name }}', {{ image.id }})">
+            </div>
+            <div style="padding:0.8rem;">
+              <div style="font-weight:bold; font-size:0.9em; margin-bottom:0.3rem; word-break:break-word;">
+                {{ image.original_name }}
+              </div>
+              <div style="font-size:0.8em; color:#666; margin-bottom:0.5rem;">
+                {{ (image.file_size / 1024)|round(1) }} KB · {{ image.upload_date.strftime('%Y-%m-%d') }}
+              </div>
+              {% if image.post %}
+                <div style="font-size:0.8em; margin-bottom:0.5rem;">
+                  <a href="{{ url_for('post_view', post_id=image.post.id) }}" style="color:#007bff;">
+                    {{ image.post.title[:30] }}{% if image.post.title|length > 30 %}...{% endif %}
+                  </a>
+                </div>
+              {% endif %}
+              <div style="display:flex; gap:0.5rem;">
+                <button class="btn" style="font-size:0.8em; padding:0.3rem 0.6rem;" onclick="copyImageUrl('{{ image.url }}')">Copy URL</button>
+                <button class="btn danger" style="font-size:0.8em; padding:0.3rem 0.6rem;" onclick="deleteImage({{ image.id }}, '{{ image.original_name }}')">Delete</button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div style="text-align:center; padding:3rem; color:#666;">
+        <div style="font-size:3rem; margin-bottom:1rem;">📷</div>
+        <h3>No images uploaded yet</h3>
+        <p>Upload your first images to get started with the media library.</p>
+        <button class="btn btn-primary" onclick="document.getElementById('upload-input').click()">Upload Images</button>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Image Modal -->
+<div id="image-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; cursor:pointer;" onclick="closeImageModal()">
+  <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); max-width:90%; max-height:90%;">
+    <img id="modal-image" style="max-width:100%; max-height:100%; border-radius:4px;">
+    <div style="text-align:center; margin-top:1rem; color:white;">
+      <div id="modal-title" style="font-weight:bold; margin-bottom:0.5rem;"></div>
+      <button class="btn" onclick="event.stopPropagation(); copyImageUrl(document.getElementById('modal-image').src)">Copy URL</button>
+      <button class="btn danger" onclick="event.stopPropagation(); deleteImage(window.currentImageId, document.getElementById('modal-title').textContent)">Delete</button>
+      <button class="btn" onclick="closeImageModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var selectAllCheckbox = document.getElementById('select-all-images');
+  var imageCheckboxes = document.querySelectorAll('.image-checkbox');
+  var deleteSelectedBtn = document.getElementById('delete-selected-btn');
+  
+  if (selectAllCheckbox && imageCheckboxes.length > 0) {
+    // Handle select all checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+      imageCheckboxes.forEach(function(checkbox) {
+        checkbox.checked = selectAllCheckbox.checked;
+      });
+      updateDeleteButton();
+    });
+    
+    // Handle individual checkboxes
+    imageCheckboxes.forEach(function(checkbox) {
+      checkbox.addEventListener('change', function() {
+        updateSelectAllState();
+        updateDeleteButton();
+      });
+    });
+  }
+  
+  function updateSelectAllState() {
+    var checkedCount = document.querySelectorAll('.image-checkbox:checked').length;
+    var totalCount = imageCheckboxes.length;
+    
+    if (checkedCount === 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else if (checkedCount === totalCount) {
+      selectAllCheckbox.checked = true;
+      selectAllCheckbox.indeterminate = false;
+    } else {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = true;
+    }
+  }
+  
+  function updateDeleteButton() {
+    var checkedCount = document.querySelectorAll('.image-checkbox:checked').length;
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.disabled = checkedCount === 0;
+    }
+  }
+  
+  window.openImageModal = function(url, title, imageId) {
+    document.getElementById('modal-image').src = url;
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('image-modal').style.display = 'block';
+    window.currentImageId = imageId;
+  };
+  
+  window.closeImageModal = function() {
+    document.getElementById('image-modal').style.display = 'none';
+  };
+  
+  window.copyImageUrl = function(url) {
+    navigator.clipboard.writeText(url).then(function() {
+      alert('Image URL copied to clipboard!');
+    }).catch(function() {
+      // Fallback for older browsers
+      var textArea = document.createElement('textarea');
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Image URL copied to clipboard!');
+    });
+  };
+  
+  window.deleteImage = function(imageId, imageName) {
+    if (!confirm(`Are you sure you want to delete "${imageName}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+    
+    fetch(`/delete-image/${imageId}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Remove the image item from the page
+        var imageItem = document.querySelector(`[data-image-id="${imageId}"]`);
+        if (imageItem) {
+          imageItem.remove();
+        }
+        closeImageModal();
+        alert('Image deleted successfully.');
+        
+        // Reload page if no images left
+        if (document.querySelectorAll('.media-item').length === 0) {
+          location.reload();
+        }
+      } else {
+        alert('Error deleting image: ' + data.message);
+      }
+    })
+    .catch(error => {
+      alert('Error deleting image: ' + error.message);
+    });
+  };
+  
+  window.deleteSelectedImages = function() {
+    var selectedIds = Array.from(document.querySelectorAll('.image-checkbox:checked')).map(cb => cb.value);
+    
+    if (selectedIds.length === 0) {
+      alert('Please select images to delete.');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} image(s)?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+    
+    var deletePromises = selectedIds.map(imageId => 
+      fetch(`/delete-image/${imageId}`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        }
+      })
+    );
+    
+    Promise.all(deletePromises)
+      .then(responses => Promise.all(responses.map(r => r.json())))
+      .then(results => {
+        var successCount = results.filter(r => r.success).length;
+        var errorCount = results.length - successCount;
+        
+        if (successCount > 0) {
+          // Remove deleted images from the page
+          selectedIds.forEach(imageId => {
+            var imageItem = document.querySelector(`[data-image-id="${imageId}"]`);
+            if (imageItem) {
+              imageItem.remove();
+            }
+          });
+        }
+        
+        if (errorCount === 0) {
+          alert(`Successfully deleted ${successCount} image(s).`);
+        } else {
+          alert(`Deleted ${successCount} image(s). ${errorCount} failed.`);
+        }
+        
+        // Reload page if no images left
+        if (document.querySelectorAll('.media-item').length === 0) {
+          location.reload();
+        }
+      })
+      .catch(error => {
+        alert('Error deleting images: ' + error.message);
+      });
+  };
+  
+  window.handleFileUpload = function(input) {
+    var files = input.files;
+    if (files.length === 0) return;
+    
+    var progressDiv = document.getElementById('upload-progress');
+    var progressBar = document.getElementById('progress-bar');
+    var statusDiv = document.getElementById('upload-status');
+    
+    progressDiv.style.display = 'block';
+    progressBar.style.width = '0%';
+    statusDiv.textContent = `Uploading ${files.length} file(s)...`;
+    
+    var uploadPromises = [];
+    var completedUploads = 0;
+    
+    for (var i = 0; i < files.length; i++) {
+      var formData = new FormData();
+      formData.append('image', files[i]);
+      formData.append('csrf_token', document.querySelector('meta[name=csrf-token]').getAttribute('content'));
+      
+      var uploadPromise = fetch('/upload-image', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        completedUploads++;
+        var progress = (completedUploads / files.length) * 100;
+        progressBar.style.width = progress + '%';
+        statusDiv.textContent = `Uploaded ${completedUploads} of ${files.length} file(s)...`;
+        return data;
+      });
+      
+      uploadPromises.push(uploadPromise);
+    }
+    
+    Promise.all(uploadPromises)
+      .then(results => {
+        var successCount = results.filter(r => r.success).length;
+        var errorCount = results.length - successCount;
+        
+        if (errorCount === 0) {
+          statusDiv.textContent = `Successfully uploaded ${successCount} image(s)!`;
+          setTimeout(() => {
+            location.reload(); // Refresh to show new images
+          }, 1500);
+        } else {
+          statusDiv.textContent = `Uploaded ${successCount} image(s). ${errorCount} failed.`;
+          setTimeout(() => {
+            progressDiv.style.display = 'none';
+          }, 3000);
+        }
+      })
+      .catch(error => {
+        statusDiv.textContent = 'Upload failed: ' + error.message;
+        setTimeout(() => {
+          progressDiv.style.display = 'none';
+        }, 3000);
+      });
+    
+    // Clear the input
+    input.value = '';
+  };
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Smileys Blog{% endblock %}
+
+{% block content %}
+<section class="container">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <h2>Create Post</h2>
+      <div style="display:flex; gap:0.5rem;">
+        <a class="btn" href="{{ url_for('author_profile_management') }}">👤 Author Profile</a>
+        <a class="btn" href="{{ url_for('media_library') }}">📷 Media Library</a>
+      </div>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      {{ form.hidden_tag() }}
+      <div class="form-row">
+        <div>
+          <label>{{ form.title.label }}</label>
+          {{ form.title(class='form-control') }}
+        </div>
+        <div>
+          <label>{{ form.category.label }}</label>
+          {{ form.category(class='form-control') }}
+        </div>
+      </div>
+      <div style="margin-top:0.6rem">
+        <label>{{ form.tags.label }} (comma separated)</label>
+        {{ form.tags(class='form-control') }}
+      </div>
+      
+      <div style="margin-top:0.6rem">
+        <label>{{ form.images.label }}</label>
+        {{ form.images(class='form-control', multiple=true, accept='image/*') }}
+        <small class="form-help">Upload images for your post (JPEG, PNG, GIF supported)</small>
+      </div>
+      
+      <div style="margin-top:0.6rem">
+        <label>{{ form.summary.label }}</label>
+        {{ form.summary(class='form-control', rows=3, placeholder='Optional summary or excerpt. If left blank, one will be generated automatically.') }}
+        <small class="form-help">{{ form.summary.description }}</small>
+      </div>
+      
+      <div class="form-row" style="margin-top:0.6rem">
+        <div>
+          <label>{{ form.status.label }}</label>
+          {{ form.status(class='form-control', id='status-select') }}
+        </div>
+        <div id="scheduled-time-field" style="display: none;">
+          <label>{{ form.scheduled_time.label }}</label>
+          {{ form.scheduled_time(class='form-control') }}
+          <small class="form-help">{{ form.scheduled_time.description }}</small>
+        </div>
+      </div>
+
+      <div class="editor-split">
+        <div class="editor-pane">
+          <label>{{ form.content.label }}</label>
+          {{ form.content(id='editor', class='form-control', rows=12) }}
+          <div class="form-actions" style="margin-top:0.6rem">
+            <button class="btn btn-primary" type="submit" id="submit-btn">Create Post</button>
+          </div>
+        </div>
+
+        <aside class="preview-pane" aria-live="polite">
+          <div id="preview" class="post-article">
+            <header>
+              <h2 class="muted">Live preview</h2>
+            </header>
+            <div class="post-content">Start typing to see a live preview…</div>
+          </div>
+        </aside>
+      </div>
+    </form>
+  </div>
+
+  <section class="dashboard-posts" style="margin-top:1rem">
+    <h3>Existing Posts</h3>
+    {% if posts %}
+      <form id="bulk-action-form" method="post" action="{{ url_for('bulk_action') }}">
+        {{ csrf_token() }}
+        <div class="bulk-actions" style="margin-bottom:1rem; padding:0.8rem; background:#f8f9fa; border-radius:4px;">
+          <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <label style="font-weight:bold;">
+              <input type="checkbox" id="select-all" style="margin-right:0.5rem;">
+              Select All
+            </label>
+            <select name="action" id="bulk-action-select" style="padding:0.3rem;">
+              <option value="">Choose Action...</option>
+              <option value="draft">Set as Draft</option>
+              <option value="published">Publish</option>
+              <option value="scheduled">Set as Scheduled</option>
+              <option value="delete" style="color:#dc3545;">Delete</option>
+            </select>
+            <button type="submit" class="btn" id="bulk-action-btn" disabled onclick="return confirmBulkAction()">Apply</button>
+          </div>
+        </div>
+      {% for status, post_list in posts.items() %}
+        {% if post_list %}
+          <div class="post-status-section">
+            <h4>{{ status|title }} Posts ({{ post_list|length }})</h4>
+            <div class="post-list">
+            {% for p in post_list %}
+              <div class="post-card">
+                <div style="display:flex; align-items:flex-start; gap:0.8rem;">
+                  <label style="margin-top:0.2rem;">
+                    <input type="checkbox" name="post_ids" value="{{ p.id }}" class="post-checkbox">
+                  </label>
+                  <div style="flex:1;">
+                    <div class="title"><a href="{{ url_for('post_view', post_id=p.id) }}">{{ p.title }}</a></div>
+                    <div class="meta">
+                      {{ p.category|title if p.category }} · 
+                      {% if p.status == 'scheduled' and p.scheduled_publish_at %}
+                        Scheduled for {{ p.scheduled_publish_at.strftime('%Y-%m-%d %H:%M') }}
+                      {% elif p.published_at %}
+                        Published {{ p.published_at.strftime('%Y-%m-%d') }}
+                      {% else %}
+                        Created {{ p.created_at.strftime('%Y-%m-%d') }}
+                      {% endif %}
+                      {% if p.tag_count > 0 %} · {{ p.tag_count }} tag{{ 's' if p.tag_count != 1 else '' }}{% endif %}
+                    </div>
+                    {% if p.summary %}
+                      <div class="excerpt muted">{{ p.summary }}</div>
+                    {% endif %}
+                    <div class="post-actions" style="margin-top:8px">
+                      <a class="btn" href="{{ url_for('edit_post', post_id=p.id) }}">Edit</a>
+                      <form method="post" action="{{ url_for('delete_post', post_id=p.id) }}" style="display:inline" onsubmit="return confirm('Delete this post?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn danger" type="submit">Delete</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+      </form>
+    {% else %}
+      <div class="card"><p class="muted">No posts yet.</p></div>
+    {% endif %}
+  </section>
+
+  <script>
+  (function(){
+    var editor = document.getElementById('editor');
+    var preview = document.getElementById('preview').querySelector('.post-content');
+    var statusSelect = document.getElementById('status-select');
+    var scheduledTimeField = document.getElementById('scheduled-time-field');
+    var submitBtn = document.getElementById('submit-btn');
+    
+    // Handle status selection changes
+    function updateStatusUI() {
+      var status = statusSelect.value;
+      
+      // Show/hide scheduled time field
+      if (status === 'scheduled') {
+        scheduledTimeField.style.display = 'block';
+      } else {
+        scheduledTimeField.style.display = 'none';
+      }
+      
+      // Update submit button text
+      var buttonText = {
+        'draft': 'Save as Draft',
+        'published': 'Publish Now',
+        'scheduled': 'Schedule Post'
+      };
+      submitBtn.textContent = buttonText[status] || 'Create Post';
+    }
+    
+    // Listen for status changes
+    statusSelect.addEventListener('change', updateStatusUI);
+    
+    // Initialize status UI
+    updateStatusUI();
+    
+    // Simple toolbar for basic formatting
+    function createToolbar() {
+      var toolbar = document.createElement('div');
+      toolbar.className = 'editor-toolbar';
+      toolbar.innerHTML = `
+        <button type="button" onclick="formatText('bold')" title="Bold"><b>B</b></button>
+        <button type="button" onclick="formatText('italic')" title="Italic"><i>I</i></button>
+        <button type="button" onclick="formatText('insertUnorderedList')" title="Bullet List">• List</button>
+        <button type="button" onclick="formatText('insertOrderedList')" title="Numbered List">1. List</button>
+        <button type="button" onclick="insertLink()" title="Insert Link">🔗</button>
+        <button type="button" onclick="formatText('formatBlock', 'h2')" title="Heading">H2</button>
+        <button type="button" onclick="formatText('formatBlock', 'h3')" title="Subheading">H3</button>
+      `;
+      return toolbar;
+    }
+    
+    // Make editor contenteditable with basic formatting
+    function initEditor() {
+      // Insert toolbar before editor
+      var toolbar = createToolbar();
+      editor.parentNode.insertBefore(toolbar, editor);
+      
+      // Convert textarea to contenteditable div
+      var editorDiv = document.createElement('div');
+      editorDiv.id = 'editor-content';
+      editorDiv.className = 'form-control editor-content';
+      editorDiv.contentEditable = true;
+      editorDiv.innerHTML = editor.value || '<p>Start writing your post...</p>';
+      
+      // Replace textarea with contenteditable div
+      editor.style.display = 'none';
+      editor.parentNode.insertBefore(editorDiv, editor.nextSibling);
+      
+      // Update preview and hidden textarea on input
+      function updateContent() {
+        var content = editorDiv.innerHTML;
+        editor.value = content;
+        preview.innerHTML = content;
+      }
+      
+      editorDiv.addEventListener('input', updateContent);
+      editorDiv.addEventListener('paste', function(e) {
+        setTimeout(updateContent, 10); // Allow paste to complete
+      });
+      
+      // Initial preview update
+      updateContent();
+      
+      // Focus the editor
+      editorDiv.focus();
+    }
+    
+    // Global formatting functions
+    window.formatText = function(command, value) {
+      document.execCommand(command, false, value);
+      document.getElementById('editor-content').focus();
+    };
+    
+    window.insertLink = function() {
+      var url = prompt('Enter URL:');
+      if (url) {
+        document.execCommand('createLink', false, url);
+        document.getElementById('editor-content').focus();
+      }
+    };
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initEditor);
+    } else {
+      initEditor();
+    }
+    
+    // Bulk actions functionality
+    var selectAllCheckbox = document.getElementById('select-all');
+    var postCheckboxes = document.querySelectorAll('.post-checkbox');
+    var bulkActionSelect = document.getElementById('bulk-action-select');
+    var bulkActionBtn = document.getElementById('bulk-action-btn');
+    
+    if (selectAllCheckbox && postCheckboxes.length > 0) {
+      // Handle select all checkbox
+      selectAllCheckbox.addEventListener('change', function() {
+        postCheckboxes.forEach(function(checkbox) {
+          checkbox.checked = selectAllCheckbox.checked;
+        });
+        updateBulkActionButton();
+      });
+      
+      // Handle individual checkboxes
+      postCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+          updateSelectAllState();
+          updateBulkActionButton();
+        });
+      });
+      
+      // Handle bulk action selection
+      if (bulkActionSelect) {
+        bulkActionSelect.addEventListener('change', updateBulkActionButton);
+      }
+    }
+    
+    function updateSelectAllState() {
+      var checkedCount = document.querySelectorAll('.post-checkbox:checked').length;
+      var totalCount = postCheckboxes.length;
+      
+      if (checkedCount === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+      } else if (checkedCount === totalCount) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+      } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+      }
+    }
+    
+    function updateBulkActionButton() {
+      var checkedCount = document.querySelectorAll('.post-checkbox:checked').length;
+      var actionSelected = bulkActionSelect && bulkActionSelect.value;
+      
+      if (bulkActionBtn) {
+        bulkActionBtn.disabled = checkedCount === 0 || !actionSelected;
+      }
+    }
+    
+    window.confirmBulkAction = function() {
+      var checkedCount = document.querySelectorAll('.post-checkbox:checked').length;
+      var action = bulkActionSelect.value;
+      
+      if (checkedCount === 0) {
+        alert('Please select at least one post.');
+        return false;
+      }
+      
+      if (!action) {
+        alert('Please select an action.');
+        return false;
+      }
+      
+      var actionText = {
+        'draft': 'set as draft',
+        'published': 'publish',
+        'scheduled': 'set as scheduled',
+        'delete': 'delete'
+      }[action] || action;
+      
+      var message = `Are you sure you want to ${actionText} ${checkedCount} post(s)?`;
+      
+      if (action === 'delete') {
+        message += '\n\nThis action cannot be undone.';
+      }
+      
+      return confirm(message);
+    };
+  })();
+  </script>
+
+</section>
+
+{% endblock %}

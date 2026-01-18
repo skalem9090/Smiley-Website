@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Smileys Blog{% endblock %}
+
+{% block content %}
+  <header class="site-hero">
+    <div class="container site-title">
+      <div>
+        <h1>Smileys Blog</h1>
+        <p class="site-sub">Thoughtful posts about wealth, health and happiness — concise, well-sourced, and practical.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="{{ url_for('explore') }}">Explore Posts</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="container">
+    <div class="featured-row">
+      <div class="featured-main card">
+        {% set featured = (wealth_posts|first) or (health_posts|first) or (happiness_posts|first) %}
+        {% if featured %}
+          <h2>{{ featured.title }}</h2>
+          <p class="muted">{{ featured.created_at.strftime('%Y-%m-%d') }} — {{ featured.category|title if featured.category }}</p>
+          {% if featured.summary %}
+            <p>{{ featured.summary }}</p>
+          {% else %}
+            <p>{{ featured.content[:150] }}{% if featured.content|length > 150 %}...{% endif %}</p>
+          {% endif %}
+          <p><a class="btn btn-primary" href="{{ url_for('post_view', post_id=featured.id) }}">Read full post</a></p>
+        {% else %}
+          <h2>No posts yet</h2>
+          <p class="muted">There are no posts published yet. Check back soon or add one from the dashboard.</p>
+        {% endif %}
+      </div>
+
+      <aside class="featured-side">
+        <div class="card">
+          <h2 class="cat-wealth">Wealth</h2>
+          <ul>
+          {% for post in wealth_posts %}
+            <li>
+              <a href="{{ url_for('post_view', post_id=post.id) }}">{{ post.title }}</a>
+              <div class="meta">{{ post.created_at.strftime('%Y-%m-%d') }}</div>
+              {% if post.summary %}
+                <div class="summary">{{ post.summary }}</div>
+              {% endif %}
+            </li>
+          {% else %}
+            <li>No posts in this category yet.</li>
+          {% endfor %}
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2 class="cat-health">Health</h2>
+          <ul>
+          {% for post in health_posts %}
+            <li>
+              <a href="{{ url_for('post_view', post_id=post.id) }}">{{ post.title }}</a>
+              <div class="meta">{{ post.created_at.strftime('%Y-%m-%d') }}</div>
+              {% if post.summary %}
+                <div class="summary">{{ post.summary }}</div>
+              {% endif %}
+            </li>
+          {% else %}
+            <li>No posts in this category yet.</li>
+          {% endfor %}
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2 class="cat-happiness">Happiness</h2>
+        <ul>
+        {% for post in happiness_posts %}
+          <li>
+            <a href="{{ url_for('post_view', post_id=post.id) }}">{{ post.title }}</a>
+            <div class="meta">{{ post.created_at.strftime('%Y-%m-%d') }}</div>
+            {% if post.summary %}
+              <div class="summary">{{ post.summary }}</div>
+            {% endif %}
+          </li>
+        {% else %}
+          <li>No posts in this category yet.</li>
+        {% endfor %}
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>About</h2>
+        <p class="muted">Smileys Blog is a small collection of essays and tips on living a balanced life. Concise, practical, and curated.</p>
+        <p><a href="{{ url_for('explore') }}">See more →</a></p>
+      </div>
+
+      <div class="card">
+        <h2>Get Involved</h2>
+        <p class="muted">Interested in contributing? Sign up and submit posts through the developer dashboard.</p>
+        <p><a class="btn btn-outline" href="{{ url_for('dashboard') }}">Dashboard</a></p>
+      </div>
+    </div>
+  </section>
+{% endblock %}
