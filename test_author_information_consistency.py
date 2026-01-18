@@ -60,6 +60,10 @@ def test_author_information_consistency_property(author_data):
             db.session.add(admin)
             db.session.commit()
         
+        # Clear any existing author profiles first
+        db.session.query(AuthorProfile).delete()
+        db.session.commit()
+        
         # Create or update author profile
         profile = AuthorProfile()
         db.session.add(profile)

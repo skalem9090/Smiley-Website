@@ -11,6 +11,7 @@ from feedgen.entry import FeedEntry
 from models import db, Post
 from about_page_manager import AboutPageManager
 import re
+import html
 
 
 class FeedGenerator:
@@ -28,6 +29,27 @@ class FeedGenerator:
         self.site_url = app.config.get('SITE_URL', 'http://localhost:5000')
         self.max_feed_items = app.config.get('MAX_FEED_ITEMS', 20)
         self.feed_cache_timeout = app.config.get('FEED_CACHE_TIMEOUT', 3600)  # 1 hour
+    
+    def _sanitize_xml_text(self, text):
+        """
+        Sanitize text for XML compatibility.
+        
+        Args:
+            text: Input text that may contain XML-unsafe characters
+            
+        Returns:
+            str: XML-safe text
+        """
+        if not text:
+            return ""
+        
+        # Remove control characters except tab, newline, and carriage return
+        text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+        
+        # Escape HTML entities
+        text = html.escape(text, quote=False)
+        
+        return text
     
     def generate_rss_feed(self):
         """
@@ -112,18 +134,18 @@ class FeedGenerator:
             
             # Basic entry information
             fe.id(f"{self.site_url}/post/{post.id}")
-            fe.title(post.title)
+            fe.title(self._sanitize_xml_text(post.title))
             fe.link(href=f"{self.site_url}/post/{post.id}")
             
             # Content
             if post.summary:
-                fe.description(post.summary)
-                fe.content(content=post.content, type='html')
+                fe.description(self._sanitize_xml_text(post.summary))
+                fe.content(content=self._sanitize_xml_text(post.content), type='html')
             else:
                 # Use first paragraph or truncated content as description
                 description = self._extract_description(post.content)
-                fe.description(description)
-                fe.content(content=post.content, type='html')
+                fe.description(self._sanitize_xml_text(description))
+                fe.content(content=self._sanitize_xml_text(post.content), type='html')
             
             # Dates
             pub_date = post.published_at if post.published_at else post.created_at
@@ -140,15 +162,15 @@ class FeedGenerator:
             # Categories/Tags
             if hasattr(post, 'tag_relationships') and post.tag_relationships:
                 for tag_rel in post.tag_relationships:
-                    fe.category(term=tag_rel.name)
+                    fe.category(term=self._sanitize_xml_text(tag_rel.name))
             elif post.tags:  # Fallback to legacy tags
                 tags = [tag.strip() for tag in post.tags.split(',') if tag.strip()]
                 for tag in tags:
-                    fe.category(term=tag)
+                    fe.category(term=self._sanitize_xml_text(tag))
             
             # Category
             if post.category:
-                fe.category(term=post.category)
+                fe.category(term=self._sanitize_xml_text(post.category))
             
             # GUID (unique identifier)
             fe.guid(f"{self.site_url}/post/{post.id}", permalink=True)
@@ -158,14 +180,18 @@ class FeedGenerator:
         Get published posts for feed inclusion.
         
         Returns:
-            List[Post]: Published posts ordered by publication date
+            List[Post]: Published posts ordered by publication date (newest first)
         """
-        return db.session.query(Post).filter(
+        posts = db.session.query(Post).filter(
             Post.status == 'published'
         ).order_by(
             Post.published_at.desc().nullslast(),
             Post.created_at.desc()
         ).limit(self.max_feed_items).all()
+        
+        # Reverse the list because feedgen sorts entries by publication date in ascending order
+        # We want newest posts first in the feed, so we reverse the order here
+        return list(reversed(posts))
     
     def _get_site_title(self):
         """
