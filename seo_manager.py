@@ -179,10 +179,13 @@ class SEOManager:
         """
         site_name = self.app.config.get('SEO_SITE_NAME')
         site_url = self.app.config.get('SEO_SITE_URL')
+        site_description = self.app.config.get('SEO_SITE_DESCRIPTION')
         default_image = self.app.config.get('SEO_DEFAULT_IMAGE')
         
         og_tags = {
             'og:site_name': site_name,
+            'og:title': site_name,  # Default title
+            'og:description': site_description,  # Default description
             'og:url': self._get_canonical_url(),
             'og:type': page_type,
             'og:locale': 'en_US',

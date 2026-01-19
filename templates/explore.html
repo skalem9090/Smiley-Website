@@ -58,6 +58,27 @@
     {% endif %}
   </div>
 
+  <!-- Tags Section -->
+  {% if all_tags %}
+  <div class="card" style="margin-top: 2rem;">
+    <h3 style="color: var(--paper-text); font-size: 1.3rem; font-weight: 600; margin-bottom: 1rem;">
+      🏷️ Browse by Tag
+    </h3>
+    <div class="tag-cloud" style="margin-top: 1rem;">
+      {% for tag_data in all_tags %}
+        <a href="{{ url_for('tag_posts', slug=tag_data.slug) }}" 
+           class="tag-link" 
+           style="display: inline-block; margin: 0.3rem 0.5rem 0.3rem 0; padding: 0.5rem 0.9rem; background: var(--hover-bg); border: 1px solid var(--paper-border); border-radius: 20px; text-decoration: none; color: var(--paper-text); font-size: 0.9em; transition: all 0.2s;"
+           onmouseover="this.style.background='var(--accent)'; this.style.color='white'; this.style.borderColor='var(--accent)';"
+           onmouseout="this.style.background='var(--hover-bg)'; this.style.color='var(--paper-text)'; this.style.borderColor='var(--paper-border)';">
+          {{ tag_data.name }}
+          <span style="opacity: 0.7; font-size: 0.85em; margin-left: 0.3rem;">({{ tag_data.post_count }})</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div style="margin-top: 2rem">
     {% if posts %}
       <div class="post-list">
@@ -127,12 +148,6 @@
         {% endif %}
       </div>
     {% endif %}
-  </div>
-  
-  <div style="margin-top: 2rem; text-align: center;">
-    <a class="btn btn-outline" href="{{ url_for('tag_list') }}">
-      🏷️ Browse by Tags
-    </a>
   </div>
 </section>
 

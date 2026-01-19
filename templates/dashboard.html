@@ -132,15 +132,38 @@
       </div>
 
       <div class="editor-split">
-        <div class="editor-pane">
+        <div class="editor-pane" style="width: 100%;">
           <label>{{ form.content.label }}</label>
-          {{ form.content(id='editor', class='form-control', rows=12) }}
+          {{ form.content(id='editor', class='form-control', rows=12, style='display: none;') }}
+          
+          <!-- Editor Feature Toolbar -->
+          <div class="editor-feature-toolbar" style="display: flex !important; gap: 0.5rem; margin-bottom: 1rem; padding: 0.75rem; background: var(--paper-aged); border-radius: 8px; flex-wrap: wrap; align-items: center; position: relative; z-index: 10; border: 2px solid var(--ink-accent); box-shadow: 0 2px 8px rgba(139, 69, 19, 0.15);">
+            <button type="button" class="btn btn-sm" onclick="openExportDialog()" title="Export content to different formats">
+              📤 Export
+            </button>
+            <button type="button" class="btn btn-sm" onclick="openTemplateDialog()" title="Apply or manage templates">
+              📋 Templates
+            </button>
+            <button type="button" class="btn btn-sm" onclick="validateContent()" title="Validate content before publishing">
+              ✓ Validate
+            </button>
+            <div style="flex: 1;"></div>
+            <button type="button" class="btn btn-sm" onclick="togglePreview()" id="preview-toggle-btn" title="Show/hide preview">
+              👁️ Preview
+            </button>
+          </div>
+          
+          <!-- Advanced Editor Container -->
+          <div id="advanced-editor-container" style="min-height: 400px; margin-bottom: 1rem;">
+            <!-- Advanced editor will be initialized here -->
+          </div>
+          
           <div class="form-actions" style="margin-top:0.6rem">
             <button class="btn btn-primary" type="submit" id="submit-btn">Create Post</button>
           </div>
         </div>
 
-        <aside class="preview-pane" aria-live="polite">
+        <aside class="preview-pane" id="preview-pane" aria-live="polite" style="display: none;">
           <div id="preview" class="post-article">
             <header>
               <h2 class="muted">Live preview</h2>
@@ -202,10 +225,7 @@
                     {% endif %}
                     <div class="post-actions" style="margin-top:8px">
                       <a class="btn" href="{{ url_for('edit_post', post_id=p.id) }}">Edit</a>
-                      <form method="post" action="{{ url_for('delete_post', post_id=p.id) }}" style="display:inline" onsubmit="return confirm('Delete this post?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="btn danger" type="submit">Delete</button>
-                      </form>
+                      <button class="btn danger" type="button" onclick="deletePost({{ p.id }})">Delete</button>
                     </div>
                   </div>
                 </div>
@@ -222,12 +242,17 @@
   </section>
 
   <script>
+  // Cache buster v4.0 - Improved image gallery UI - 2026-01-19
   (function(){
     var editor = document.getElementById('editor');
     var preview = document.getElementById('preview').querySelector('.post-content');
     var statusSelect = document.getElementById('status-select');
     var scheduledTimeField = document.getElementById('scheduled-time-field');
     var submitBtn = document.getElementById('submit-btn');
+    
+    // Make advancedEditor global so feature toolbar functions can access it
+    window.advancedEditor = null;
+    var advancedEditor = null;
     
     // Load dashboard statistics
     function loadDashboardStats() {
@@ -264,6 +289,102 @@
           console.error('Error loading newsletter stats:', error);
           document.getElementById('subscribers-count').textContent = 'Subscribers: Error';
         });
+    }
+    
+    // Initialize Advanced Editor
+    async function initAdvancedEditor() {
+      try {
+        // Check if SimpleEditor is available
+        if (typeof window.AdvancedEditor === 'undefined') {
+          console.warn('AdvancedEditor (SimpleEditor) not available, falling back to basic editor');
+          initBasicEditor();
+          return;
+        }
+        
+        const container = document.getElementById('advanced-editor-container');
+        if (!container) {
+          console.error('Advanced editor container not found');
+          initBasicEditor();
+          return;
+        }
+        
+        console.log('Initializing Simple Advanced Editor...');
+        
+        // Create advanced editor instance using SimpleEditor
+        advancedEditor = window.advancedEditor = new window.AdvancedEditor({
+          container: container,
+          content: editor.value || '',
+          showToolbar: true,
+          showSidebar: true,
+          autosave: true,
+          autosaveInterval: 30000,
+          placeholder: 'Start writing your post...'
+        });
+        
+        // Initialize the editor
+        await advancedEditor.initialize();
+        
+        // Set up event listeners
+        advancedEditor.on('update', ({ content }) => {
+          // Update hidden textarea
+          editor.value = content.html;
+          
+          // Update preview
+          preview.innerHTML = content.html;
+          
+          // Trigger form validation if needed
+          editor.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        
+        advancedEditor.on('save', ({ content }) => {
+          editor.value = content.html;
+          console.log('Content saved via advanced editor');
+        });
+        
+        advancedEditor.on('autosave', ({ content }) => {
+          editor.value = content.html;
+          console.log('Content auto-saved');
+        });
+        
+        // Set initial content if exists
+        if (editor.value) {
+          advancedEditor.setContent(editor.value);
+        }
+        
+        console.log('Simple Advanced Editor initialized successfully');
+        
+      } catch (error) {
+        console.error('Failed to initialize Advanced Editor:', error);
+        initBasicEditor();
+      }
+    }
+    
+    // Fallback to basic editor
+    function initBasicEditor() {
+      console.log('Initializing basic editor fallback');
+      
+      // Show the original textarea
+      editor.style.display = 'block';
+      
+      // Hide advanced editor container
+      const container = document.getElementById('advanced-editor-container');
+      if (container) {
+        container.style.display = 'none';
+      }
+      
+      // Set up basic preview functionality
+      function updatePreview() {
+        const content = editor.value || '';
+        preview.innerHTML = content || 'Start typing to see a live preview…';
+      }
+      
+      editor.addEventListener('input', updatePreview);
+      editor.addEventListener('paste', () => {
+        setTimeout(updatePreview, 10);
+      });
+      
+      // Initial preview update
+      updatePreview();
     }
     
     // Show analytics dashboard
@@ -589,7 +710,7 @@
             const components = health.components;
             
             let healthHTML = `
-              <div class="health-overview" style="margin-bottom: 2rem; padding: 1rem; background: ${getStatusColor(health.overall_status)}; border-radius: 6px;">
+              <div class="health-overview" style="margin-bottom: 2rem; padding: 1rem; background: ${getStatusColor(health.overall_status)}; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
                 <h4 style="margin: 0 0 0.5rem 0;">Overall Status: ${health.overall_status.toUpperCase()}</h4>
                 <p style="margin: 0; font-size: 0.9rem;">
                   Last checked: ${new Date(health.check_timestamp).toLocaleString()}<br>
@@ -604,8 +725,8 @@
             if (components.database) {
               const db = components.database;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(db.status)}; padding: 1rem; border-radius: 6px;">
-                  <h4 style="margin: 0 0 1rem 0; color: #333;">Database</h4>
+                <div class="health-card" style="background: ${getStatusColor(db.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                  <h4 style="margin: 0 0 1rem 0;">Database</h4>
                   <div class="status-indicator">${getStatusIcon(db.status)} ${db.message}</div>
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     <div>Query Time: ${db.details.query_time}s</div>
@@ -621,8 +742,8 @@
             if (components.search_index) {
               const search = components.search_index;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(search.status)}; padding: 1rem; border-radius: 6px;">
-                  <h4 style="margin: 0 0 1rem 0; color: #333;">Search Index</h4>
+                <div class="health-card" style="background: ${getStatusColor(search.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                  <h4 style="margin: 0 0 1rem 0;">Search Index</h4>
                   <div class="status-indicator">${getStatusIcon(search.status)} ${search.message}</div>
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     <div>Coverage: ${search.details.coverage_percentage}%</div>
@@ -637,8 +758,8 @@
             if (components.email_service) {
               const email = components.email_service;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(email.status)}; padding: 1rem; border-radius: 6px;">
-                  <h4 style="margin: 0 0 1rem 0; color: #333;">Email Service</h4>
+                <div class="health-card" style="background: ${getStatusColor(email.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                  <h4 style="margin: 0 0 1rem 0;">Email Service</h4>
                   <div class="status-indicator">${getStatusIcon(email.status)} ${email.message}</div>
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     <div>Configured: ${email.details.configured ? 'Yes' : 'No'}</div>
@@ -653,8 +774,8 @@
             if (components.feed_generation) {
               const feeds = components.feed_generation;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(feeds.status)}; padding: 1rem; border-radius: 6px;">
-                  <h4 style="margin: 0 0 1rem 0; color: #333;">Feed Generation</h4>
+                <div class="health-card" style="background: ${getStatusColor(feeds.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                  <h4 style="margin: 0 0 1rem 0;">Feed Generation</h4>
                   <div class="status-indicator">${getStatusIcon(feeds.status)} ${feeds.message}</div>
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     <div>RSS: ${feeds.details.rss_success ? '✅' : '❌'} (${feeds.details.rss_generation_time}s)</div>
@@ -669,8 +790,8 @@
             if (components.file_system) {
               const fs = components.file_system;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(fs.status)}; padding: 1rem; border-radius: 6px;">
-                  <h4 style="margin: 0 0 1rem 0; color: #333;">File System</h4>
+                <div class="health-card" style="background: ${getStatusColor(fs.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                  <h4 style="margin: 0 0 1rem 0;">File System</h4>
                   <div class="status-indicator">${getStatusIcon(fs.status)} ${fs.message}</div>
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     <div>Disk Usage: ${fs.details.disk_usage_percent}%</div>
@@ -686,8 +807,8 @@
             if (components.performance) {
               const perf = components.performance;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(perf.status)}; padding: 1rem; border-radius: 6px;">
-                  <h4 style="margin: 0 0 1rem 0; color: #333;">Performance</h4>
+                <div class="health-card" style="background: ${getStatusColor(perf.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                  <h4 style="margin: 0 0 1rem 0;">Performance</h4>
                   <div class="status-indicator">${getStatusIcon(perf.status)} ${perf.message}</div>
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     ${perf.details.cpu_percent !== undefined ? `<div>CPU: ${perf.details.cpu_percent}%</div>` : ''}
@@ -713,13 +834,28 @@
     
     // Helper functions for health status display
     function getStatusColor(status) {
-      const colors = {
-        'healthy': '#e6f5e9',
-        'warning': '#fff6d6',
-        'critical': '#ffe4e0',
-        'unknown': '#f3f4f6'
-      };
-      return colors[status] || colors.unknown;
+      // Check if dark mode is active
+      const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+      
+      if (isDarkMode) {
+        // Dark mode colors - much darker backgrounds with colored borders
+        const darkColors = {
+          'healthy': 'rgba(34, 197, 94, 0.25)',
+          'warning': 'rgba(251, 191, 36, 0.25)',
+          'critical': 'rgba(239, 68, 68, 0.25)',
+          'unknown': 'rgba(100, 100, 100, 0.25)'
+        };
+        return darkColors[status] || darkColors.unknown;
+      } else {
+        // Light mode colors
+        const lightColors = {
+          'healthy': '#e6f5e9',
+          'warning': '#fff6d6',
+          'critical': '#ffe4e0',
+          'unknown': '#f3f4f6'
+        };
+        return lightColors[status] || lightColors.unknown;
+      }
     }
     
     function getStatusIcon(status) {
@@ -994,7 +1130,7 @@
     };
     
     function showImageGalleryModal(images) {
-      // Create modal
+      // Create modal overlay
       var modal = document.createElement('div');
       modal.style.cssText = `
         position: fixed;
@@ -1002,91 +1138,339 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.8);
+        background: rgba(0,0,0,0.85);
         z-index: 10000;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 2rem;
+        animation: fadeIn 0.2s ease-in;
       `;
       
       var modalContent = document.createElement('div');
       modalContent.style.cssText = `
-        background: white;
-        border-radius: 12px;
-        padding: 2rem;
-        max-width: 800px;
-        max-height: 80vh;
-        overflow-y: auto;
+        background: var(--paper-cream, #fef9f3);
+        border-radius: 16px;
+        padding: 0;
+        max-width: 900px;
+        max-height: 85vh;
         width: 100%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       `;
       
+      // Header with tabs
       var header = document.createElement('div');
       header.style.cssText = `
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 1rem;
+        padding: 1.5rem 2rem;
+        border-bottom: 2px solid var(--paper-shadow, #e8d5c4);
+        background: var(--paper-aged, #faf5ef);
       `;
       
       header.innerHTML = `
-        <h3 style="margin: 0; color: #333;">Image Gallery</h3>
-        <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">×</button>
+        <div>
+          <h3 style="margin: 0 0 0.5rem 0; color: var(--ink-accent, #9b5e2b); font-family: var(--heading-font, Georgia); font-size: 1.5rem;">📷 Media Manager</h3>
+          <p style="margin: 0; color: var(--ink-medium, #6b5d54); font-size: 0.9rem;">Upload new images or select from your library</p>
+        </div>
+        <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--ink-medium, #6b5d54); line-height: 1; padding: 0; width: 32px; height: 32px; border-radius: 50%; transition: all 0.2s;" onmouseover="this.style.background='rgba(155,94,43,0.1)'" onmouseout="this.style.background='none'">×</button>
       `;
       
-      var gallery = document.createElement('div');
-      gallery.style.cssText = `
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 1rem;
+      // Tab navigation
+      var tabNav = document.createElement('div');
+      tabNav.style.cssText = `
+        display: flex;
+        gap: 0.5rem;
+        padding: 1rem 2rem 0 2rem;
+        background: var(--paper-aged, #faf5ef);
       `;
+      
+      tabNav.innerHTML = `
+        <button class="tab-btn active" data-tab="upload" style="padding: 0.75rem 1.5rem; border: none; background: var(--paper-cream, #fef9f3); color: var(--ink-accent, #9b5e2b); border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; border-bottom: 3px solid var(--ink-accent, #9b5e2b); transition: all 0.2s;">
+          📤 Upload
+        </button>
+        <button class="tab-btn" data-tab="library" style="padding: 0.75rem 1.5rem; border: none; background: transparent; color: var(--ink-medium, #6b5d54); border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; border-bottom: 3px solid transparent; transition: all 0.2s;">
+          🖼️ Library (${images.length})
+        </button>
+      `;
+      
+      // Content area
+      var contentArea = document.createElement('div');
+      contentArea.style.cssText = `
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
+        background: var(--paper-cream, #fef9f3);
+      `;
+      
+      // Upload tab content
+      var uploadTab = document.createElement('div');
+      uploadTab.className = 'tab-content active';
+      uploadTab.setAttribute('data-tab', 'upload');
+      uploadTab.style.cssText = `display: block;`;
+      
+      uploadTab.innerHTML = `
+        <div class="upload-area" style="
+          border: 3px dashed var(--paper-shadow, #d4c4b0);
+          border-radius: 12px;
+          padding: 3rem 2rem;
+          text-align: center;
+          background: var(--paper-aged, #faf5ef);
+          transition: all 0.3s;
+          cursor: pointer;
+        " onmouseover="this.style.borderColor='var(--ink-accent, #9b5e2b)'; this.style.background='rgba(155,94,43,0.05)'" onmouseout="this.style.borderColor='var(--paper-shadow, #d4c4b0)'; this.style.background='var(--paper-aged, #faf5ef)'">
+          <div style="font-size: 4rem; margin-bottom: 1rem;">📁</div>
+          <h4 style="margin: 0 0 0.5rem 0; color: var(--ink-accent, #9b5e2b); font-size: 1.2rem;">Drop images here or click to browse</h4>
+          <p style="margin: 0 0 1rem 0; color: var(--ink-medium, #6b5d54); font-size: 0.9rem;">Supports: JPEG, PNG, GIF, WebP (Max 10MB)</p>
+          <button class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1rem;">
+            Choose Files
+          </button>
+          <input type="file" id="image-upload-input" accept="image/*" multiple style="display: none;">
+        </div>
+        
+        <div id="upload-preview" style="margin-top: 2rem; display: none;">
+          <h4 style="margin: 0 0 1rem 0; color: var(--ink-accent, #9b5e2b);">Selected Files:</h4>
+          <div id="preview-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem;"></div>
+          <div style="margin-top: 1.5rem; text-align: center;">
+            <button id="upload-btn" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1rem;">
+              Upload All
+            </button>
+            <button id="cancel-upload-btn" class="btn" style="padding: 0.75rem 2rem; font-size: 1rem; margin-left: 0.5rem;">
+              Cancel
+            </button>
+          </div>
+        </div>
+        
+        <div id="upload-progress" style="margin-top: 2rem; display: none;">
+          <div style="background: var(--paper-aged, #faf5ef); border-radius: 8px; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span style="color: var(--ink-accent, #9b5e2b); font-weight: 600;">Uploading...</span>
+              <span id="upload-percent" style="color: var(--ink-medium, #6b5d54);">0%</span>
+            </div>
+            <div style="background: var(--paper-shadow, #d4c4b0); height: 8px; border-radius: 4px; overflow: hidden;">
+              <div id="upload-bar" style="background: var(--ink-accent, #9b5e2b); height: 100%; width: 0%; transition: width 0.3s;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Library tab content
+      var libraryTab = document.createElement('div');
+      libraryTab.className = 'tab-content';
+      libraryTab.setAttribute('data-tab', 'library');
+      libraryTab.style.cssText = `display: none;`;
       
       if (images.length === 0) {
-        gallery.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1 / -1;">No images uploaded yet. Upload some images first!</p>';
+        libraryTab.innerHTML = `
+          <div style="text-align: center; padding: 4rem 2rem; color: var(--ink-medium, #6b5d54);">
+            <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">🖼️</div>
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--ink-accent, #9b5e2b);">No images yet</h4>
+            <p style="margin: 0;">Upload some images to get started!</p>
+          </div>
+        `;
       } else {
+        var galleryGrid = document.createElement('div');
+        galleryGrid.style.cssText = `
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 1.5rem;
+        `;
+        
         images.forEach(image => {
-          var imageItem = document.createElement('div');
-          imageItem.style.cssText = `
-            border: 1px solid #ddd;
-            border-radius: 8px;
+          var imageCard = document.createElement('div');
+          imageCard.style.cssText = `
+            border: 2px solid var(--paper-shadow, #d4c4b0);
+            border-radius: 12px;
             overflow: hidden;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.3s;
+            background: white;
           `;
           
-          imageItem.innerHTML = `
-            <img src="${image.url}" alt="${image.original_name}" style="width: 100%; height: 120px; object-fit: cover;">
-            <div style="padding: 0.5rem; font-size: 0.8rem; color: #666;">
-              <div style="font-weight: 500; margin-bottom: 0.25rem;">${image.original_name}</div>
-              <div>${(image.file_size / 1024).toFixed(1)} KB</div>
+          imageCard.innerHTML = `
+            <div style="position: relative; padding-top: 75%; overflow: hidden; background: var(--paper-aged, #faf5ef);">
+              <img src="${image.url}" alt="${image.original_name}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+              <div class="image-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(155,94,43,0.9); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s;">
+                <span style="color: white; font-weight: 600; font-size: 1.1rem;">✓ Select</span>
+              </div>
+            </div>
+            <div style="padding: 1rem;">
+              <div style="font-weight: 600; margin-bottom: 0.25rem; color: var(--ink-accent, #9b5e2b); font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${image.original_name}">${image.original_name}</div>
+              <div style="font-size: 0.8rem; color: var(--ink-medium, #6b5d54);">${(image.file_size / 1024).toFixed(1)} KB</div>
             </div>
           `;
           
-          imageItem.onmouseover = () => {
-            imageItem.style.transform = 'translateY(-2px)';
-            imageItem.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+          imageCard.onmouseover = () => {
+            imageCard.style.transform = 'translateY(-4px)';
+            imageCard.style.boxShadow = '0 8px 24px rgba(155,94,43,0.2)';
+            imageCard.style.borderColor = 'var(--ink-accent, #9b5e2b)';
+            imageCard.querySelector('.image-overlay').style.opacity = '1';
           };
           
-          imageItem.onmouseout = () => {
-            imageItem.style.transform = 'translateY(0)';
-            imageItem.style.boxShadow = 'none';
+          imageCard.onmouseout = () => {
+            imageCard.style.transform = 'translateY(0)';
+            imageCard.style.boxShadow = 'none';
+            imageCard.style.borderColor = 'var(--paper-shadow, #d4c4b0)';
+            imageCard.querySelector('.image-overlay').style.opacity = '0';
           };
           
-          imageItem.onclick = () => {
+          imageCard.onclick = () => {
             insertImageIntoEditor(image.url, image.original_name);
             modal.remove();
           };
           
-          gallery.appendChild(imageItem);
+          galleryGrid.appendChild(imageCard);
         });
+        
+        libraryTab.appendChild(galleryGrid);
       }
       
+      contentArea.appendChild(uploadTab);
+      contentArea.appendChild(libraryTab);
+      
       modalContent.appendChild(header);
-      modalContent.appendChild(gallery);
+      modalContent.appendChild(tabNav);
+      modalContent.appendChild(contentArea);
       modal.appendChild(modalContent);
       modal.className = 'modal';
+      
+      // Tab switching
+      tabNav.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+          const tabName = btn.getAttribute('data-tab');
+          
+          // Update buttons
+          tabNav.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active');
+            b.style.background = 'transparent';
+            b.style.color = 'var(--ink-medium, #6b5d54)';
+            b.style.borderBottom = '3px solid transparent';
+          });
+          btn.classList.add('active');
+          btn.style.background = 'var(--paper-cream, #fef9f3)';
+          btn.style.color = 'var(--ink-accent, #9b5e2b)';
+          btn.style.borderBottom = '3px solid var(--ink-accent, #9b5e2b)';
+          
+          // Update content
+          contentArea.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+          });
+          contentArea.querySelector(`[data-tab="${tabName}"]`).style.display = 'block';
+        };
+      });
+      
+      // Upload functionality
+      const uploadArea = uploadTab.querySelector('.upload-area');
+      const fileInput = uploadTab.querySelector('#image-upload-input');
+      const uploadPreview = uploadTab.querySelector('#upload-preview');
+      const previewGrid = uploadTab.querySelector('#preview-grid');
+      const uploadBtn = uploadTab.querySelector('#upload-btn');
+      const cancelBtn = uploadTab.querySelector('#cancel-upload-btn');
+      const uploadProgress = uploadTab.querySelector('#upload-progress');
+      
+      let selectedFiles = [];
+      
+      uploadArea.onclick = () => fileInput.click();
+      
+      fileInput.onchange = (e) => {
+        selectedFiles = Array.from(e.target.files);
+        showPreview();
+      };
+      
+      // Drag and drop
+      uploadArea.ondragover = (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = 'var(--ink-accent, #9b5e2b)';
+        uploadArea.style.background = 'rgba(155,94,43,0.1)';
+      };
+      
+      uploadArea.ondragleave = () => {
+        uploadArea.style.borderColor = 'var(--paper-shadow, #d4c4b0)';
+        uploadArea.style.background = 'var(--paper-aged, #faf5ef)';
+      };
+      
+      uploadArea.ondrop = (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = 'var(--paper-shadow, #d4c4b0)';
+        uploadArea.style.background = 'var(--paper-aged, #faf5ef)';
+        selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        showPreview();
+      };
+      
+      function showPreview() {
+        if (selectedFiles.length === 0) return;
+        
+        previewGrid.innerHTML = '';
+        selectedFiles.forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const preview = document.createElement('div');
+            preview.style.cssText = `
+              position: relative;
+              border: 2px solid var(--paper-shadow, #d4c4b0);
+              border-radius: 8px;
+              overflow: hidden;
+            `;
+            preview.innerHTML = `
+              <img src="${e.target.result}" style="width: 100%; height: 120px; object-fit: cover;">
+              <button onclick="this.closest('div').remove()" style="position: absolute; top: 4px; right: 4px; background: rgba(220,38,38,0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 0.9rem; line-height: 1;">×</button>
+              <div style="padding: 0.5rem; background: white; font-size: 0.75rem; color: var(--ink-medium, #6b5d54); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${file.name}</div>
+            `;
+            previewGrid.appendChild(preview);
+          };
+          reader.readAsDataURL(file);
+        });
+        
+        uploadArea.style.display = 'none';
+        uploadPreview.style.display = 'block';
+      }
+      
+      cancelBtn.onclick = () => {
+        selectedFiles = [];
+        fileInput.value = '';
+        uploadArea.style.display = 'block';
+        uploadPreview.style.display = 'none';
+      };
+      
+      uploadBtn.onclick = async () => {
+        uploadPreview.style.display = 'none';
+        uploadProgress.style.display = 'block';
+        
+        const uploadBar = uploadProgress.querySelector('#upload-bar');
+        const uploadPercent = uploadProgress.querySelector('#upload-percent');
+        
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i];
+          const formData = new FormData();
+          formData.append('image', file);
+          
+          try {
+            const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
+            const response = await fetch('/api/upload-image', {
+              method: 'POST',
+              headers: { 'X-CSRFToken': csrfToken },
+              body: formData
+            });
+            
+            const percent = Math.round(((i + 1) / selectedFiles.length) * 100);
+            uploadBar.style.width = percent + '%';
+            uploadPercent.textContent = percent + '%';
+            
+          } catch (error) {
+            console.error('Upload error:', error);
+          }
+        }
+        
+        // Reload gallery
+        setTimeout(() => {
+          modal.remove();
+          showImageGallery();
+        }, 500);
+      };
       
       // Close on background click
       modal.onclick = (e) => {
@@ -1164,9 +1548,15 @@
     
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initEditor);
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM loaded, initializing SimpleEditor...');
+        console.log('SimpleEditor available:', typeof window.AdvancedEditor !== 'undefined');
+        initAdvancedEditor();
+      });
     } else {
-      initEditor();
+      console.log('DOM already ready, initializing SimpleEditor...');
+      console.log('SimpleEditor available:', typeof window.AdvancedEditor !== 'undefined');
+      initAdvancedEditor();
     }
     
     // Bulk actions functionality
@@ -1252,7 +1642,562 @@
       
       return confirm(message);
     };
+    
+    // Delete individual post
+    window.deletePost = function(postId) {
+      if (!confirm('Delete this post? This action cannot be undone.')) {
+        return;
+      }
+      
+      // Create a temporary form to submit the delete request
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/dashboard/delete/' + postId;
+      
+      // Add CSRF token
+      var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+      var csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = 'csrf_token';
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+      
+      // Add form to body and submit
+      document.body.appendChild(form);
+      form.submit();
+    };
+    
   })();
+  
+  // ============================================
+  // FEATURE TOOLBAR FUNCTIONS
+  // ============================================
+  
+  // Toggle preview pane visibility
+  window.togglePreview = function() {
+    const previewPane = document.getElementById('preview-pane');
+    const toggleBtn = document.getElementById('preview-toggle-btn');
+    
+    if (previewPane.style.display === 'none' || !previewPane.style.display) {
+      previewPane.style.display = 'block';
+      toggleBtn.textContent = '👁️ Hide Preview';
+    } else {
+      previewPane.style.display = 'none';
+      toggleBtn.textContent = '👁️ Show Preview';
+    }
+  };
+  
+  // Open export dialog
+  window.openExportDialog = function() {
+    // Check if advanced editor is available
+    if (!window.advancedEditor) {
+      alert('Editor is still loading. Please wait a moment and try again.');
+      console.log('advancedEditor not ready yet');
+      return;
+    }
+    
+    if (!window.advancedEditor.exportSystem) {
+      console.warn('Export system not available, using basic export');
+    }
+    
+    // Create export modal
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+    
+    modalContent.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0; color: #333;">Export Content</h3>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">×</button>
+      </div>
+      
+      <p style="color: #666; margin-bottom: 1.5rem;">Choose a format to export your content:</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <button class="btn btn-primary" onclick="exportContent('html')" style="width: 100%;">
+          📄 Export as HTML
+        </button>
+        <button class="btn btn-primary" onclick="exportContent('markdown')" style="width: 100%;">
+          📝 Export as Markdown
+        </button>
+        <button class="btn btn-primary" onclick="exportContent('json')" style="width: 100%;">
+          📊 Export as JSON
+        </button>
+      </div>
+    `;
+    
+    modal.appendChild(modalContent);
+    
+    // Close on background click
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
+    
+    document.body.appendChild(modal);
+  };
+  
+  // Export content in specified format
+  window.exportContent = function(format) {
+    if (!window.advancedEditor) {
+      alert('Editor not available');
+      return;
+    }
+    
+    try {
+      const content = window.advancedEditor.getContent();
+      let exportData;
+      let filename;
+      let mimeType;
+      
+      switch(format) {
+        case 'html':
+          exportData = content.html || content;
+          filename = 'content.html';
+          mimeType = 'text/html';
+          break;
+        case 'markdown':
+          exportData = content.markdown || convertHtmlToMarkdown(content.html || content);
+          filename = 'content.md';
+          mimeType = 'text/markdown';
+          break;
+        case 'json':
+          exportData = JSON.stringify(content, null, 2);
+          filename = 'content.json';
+          mimeType = 'application/json';
+          break;
+        default:
+          alert('Unknown format');
+          return;
+      }
+      
+      // Create download link
+      const blob = new Blob([exportData], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Close modal
+      document.querySelector('.modal-overlay')?.remove();
+      
+      showNotification(`Content exported as ${format.toUpperCase()}`, 'success');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export content: ' + error.message);
+    }
+  };
+  
+  // Simple HTML to Markdown converter
+  function convertHtmlToMarkdown(html) {
+    let markdown = html;
+    
+    // Headers
+    markdown = markdown.replace(/<h1>(.*?)<\/h1>/gi, '# $1\n\n');
+    markdown = markdown.replace(/<h2>(.*?)<\/h2>/gi, '## $1\n\n');
+    markdown = markdown.replace(/<h3>(.*?)<\/h3>/gi, '### $1\n\n');
+    
+    // Bold and italic
+    markdown = markdown.replace(/<strong>(.*?)<\/strong>/gi, '**$1**');
+    markdown = markdown.replace(/<b>(.*?)<\/b>/gi, '**$1**');
+    markdown = markdown.replace(/<em>(.*?)<\/em>/gi, '*$1*');
+    markdown = markdown.replace(/<i>(.*?)<\/i>/gi, '*$1*');
+    
+    // Links
+    markdown = markdown.replace(/<a href="(.*?)">(.*?)<\/a>/gi, '[$2]($1)');
+    
+    // Images
+    markdown = markdown.replace(/<img src="(.*?)" alt="(.*?)".*?>/gi, '![$2]($1)');
+    
+    // Lists
+    markdown = markdown.replace(/<li>(.*?)<\/li>/gi, '- $1\n');
+    markdown = markdown.replace(/<ul>(.*?)<\/ul>/gis, '$1\n');
+    markdown = markdown.replace(/<ol>(.*?)<\/ol>/gis, '$1\n');
+    
+    // Paragraphs
+    markdown = markdown.replace(/<p>(.*?)<\/p>/gi, '$1\n\n');
+    
+    // Remove remaining HTML tags
+    markdown = markdown.replace(/<[^>]+>/g, '');
+    
+    // Clean up extra newlines
+    markdown = markdown.replace(/\n{3,}/g, '\n\n');
+    
+    return markdown.trim();
+  }
+  
+  // Open template dialog
+  window.openTemplateDialog = function() {
+    if (!window.advancedEditor) {
+      alert('Editor is still loading. Please wait a moment and try again.');
+      console.log('advancedEditor not ready yet');
+      return;
+    }
+    
+    if (!window.advancedEditor.templateSystem) {
+      console.warn('Template system not available, using basic templates');
+    }
+    
+    // Create template modal
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+    
+    modalContent.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0; color: #333;">Content Templates</h3>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">×</button>
+      </div>
+      
+      <p style="color: #666; margin-bottom: 1.5rem;">Choose a template to start with:</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="template-item" onclick="applyTemplate('blog-post')" style="padding: 1rem; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #333;">📝 Blog Post</h4>
+          <p style="margin: 0; font-size: 0.9rem; color: #666;">Standard blog post with introduction, body, and conclusion</p>
+        </div>
+        
+        <div class="template-item" onclick="applyTemplate('tutorial')" style="padding: 1rem; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #333;">📚 Tutorial</h4>
+          <p style="margin: 0; font-size: 0.9rem; color: #666;">Step-by-step tutorial with prerequisites and examples</p>
+        </div>
+        
+        <div class="template-item" onclick="applyTemplate('review')" style="padding: 1rem; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #333;">⭐ Product Review</h4>
+          <p style="margin: 0; font-size: 0.9rem; color: #666;">Product review with pros, cons, and rating</p>
+        </div>
+        
+        <div class="template-item" onclick="applyTemplate('news')" style="padding: 1rem; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #333;">📰 News Article</h4>
+          <p style="margin: 0; font-size: 0.9rem; color: #666;">News article with headline, summary, and details</p>
+        </div>
+      </div>
+    `;
+    
+    modal.appendChild(modalContent);
+    
+    // Add hover effects
+    const templateItems = modalContent.querySelectorAll('.template-item');
+    templateItems.forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        item.style.borderColor = '#d97706';
+        item.style.backgroundColor = '#fef3c7';
+      });
+      item.addEventListener('mouseleave', () => {
+        item.style.borderColor = '#e0e0e0';
+        item.style.backgroundColor = 'transparent';
+      });
+    });
+    
+    // Close on background click
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
+    
+    document.body.appendChild(modal);
+  };
+  
+  // Apply template
+  window.applyTemplate = function(templateName) {
+    const templates = {
+      'blog-post': `<h2>Your Blog Post Title</h2>
+<p><strong>Introduction:</strong> Start with an engaging introduction that hooks your readers...</p>
+
+<h3>Main Content</h3>
+<p>Write your main content here. Break it into sections for better readability.</p>
+
+<h3>Key Points</h3>
+<ul>
+  <li>First key point</li>
+  <li>Second key point</li>
+  <li>Third key point</li>
+</ul>
+
+<h3>Conclusion</h3>
+<p>Wrap up your post with a strong conclusion and call to action...</p>`,
+
+      'tutorial': `<h2>Tutorial: [Your Topic]</h2>
+
+<h3>Prerequisites</h3>
+<ul>
+  <li>Prerequisite 1</li>
+  <li>Prerequisite 2</li>
+</ul>
+
+<h3>Step 1: [First Step]</h3>
+<p>Explain the first step in detail...</p>
+
+<h3>Step 2: [Second Step]</h3>
+<p>Explain the second step...</p>
+
+<h3>Step 3: [Third Step]</h3>
+<p>Explain the third step...</p>
+
+<h3>Conclusion</h3>
+<p>Summarize what was learned and next steps...</p>`,
+
+      'review': `<h2>Product Review: [Product Name]</h2>
+
+<p><strong>Rating:</strong> ⭐⭐⭐⭐⭐ (5/5)</p>
+
+<h3>Overview</h3>
+<p>Brief overview of the product...</p>
+
+<h3>Pros</h3>
+<ul>
+  <li>Pro 1</li>
+  <li>Pro 2</li>
+  <li>Pro 3</li>
+</ul>
+
+<h3>Cons</h3>
+<ul>
+  <li>Con 1</li>
+  <li>Con 2</li>
+</ul>
+
+<h3>Final Verdict</h3>
+<p>Your final thoughts and recommendation...</p>`,
+
+      'news': `<h2>[Breaking News Headline]</h2>
+
+<p><strong>Summary:</strong> Brief summary of the news story...</p>
+
+<h3>Details</h3>
+<p>Provide detailed information about the event...</p>
+
+<h3>Background</h3>
+<p>Give context and background information...</p>
+
+<h3>Impact</h3>
+<p>Discuss the implications and impact...</p>
+
+<h3>What's Next</h3>
+<p>Future developments and what to watch for...</p>`
+    };
+    
+    const templateContent = templates[templateName];
+    
+    if (!templateContent) {
+      alert('Template not found');
+      return;
+    }
+    
+    if (confirm('This will replace your current content. Continue?')) {
+      if (window.advancedEditor && window.advancedEditor.setContent) {
+        window.advancedEditor.setContent(templateContent);
+      } else {
+        // Fallback to basic editor
+        const editorContent = document.getElementById('editor-content');
+        if (editorContent) {
+          editorContent.innerHTML = templateContent;
+          window.updateContent();
+        }
+      }
+      
+      // Close modal
+      document.querySelector('.modal-overlay')?.remove();
+      
+      showNotification('Template applied successfully', 'success');
+    }
+  };
+  
+  // Validate content
+  window.validateContent = function() {
+    if (!window.advancedEditor) {
+      alert('Editor is still loading. Please wait a moment and try again.');
+      console.log('advancedEditor not ready yet');
+      return;
+    }
+    
+    if (!window.advancedEditor.contentValidator) {
+      console.warn('Content validator not available, using basic validation');
+    }
+    
+    try {
+      const content = window.advancedEditor.getContent();
+      const contentHtml = content.html || content;
+      
+      // Basic validation checks
+      const issues = [];
+      const warnings = [];
+      
+      // Check if content is empty
+      const textContent = contentHtml.replace(/<[^>]+>/g, '').trim();
+      if (!textContent || textContent.length < 10) {
+        issues.push('Content is too short (minimum 10 characters)');
+      }
+      
+      // Check for broken images
+      const imgMatches = contentHtml.match(/<img[^>]+src="([^"]*)"[^>]*>/gi);
+      if (imgMatches) {
+        imgMatches.forEach(img => {
+          if (img.includes('src=""') || img.includes('src="undefined"')) {
+            issues.push('Found image with missing or invalid source');
+          }
+        });
+      }
+      
+      // Check for empty links
+      const linkMatches = contentHtml.match(/<a[^>]+href="([^"]*)"[^>]*>(.*?)<\/a>/gi);
+      if (linkMatches) {
+        linkMatches.forEach(link => {
+          if (link.includes('href=""') || link.includes('href="#"')) {
+            warnings.push('Found link with empty or placeholder href');
+          }
+        });
+      }
+      
+      // Check word count
+      const wordCount = textContent.split(/\s+/).length;
+      if (wordCount < 50) {
+        warnings.push(`Content is quite short (${wordCount} words). Consider adding more detail.`);
+      }
+      
+      // Show validation results
+      showValidationResults(issues, warnings);
+      
+    } catch (error) {
+      console.error('Validation error:', error);
+      alert('Failed to validate content: ' + error.message);
+    }
+  };
+  
+  // Show validation results
+  function showValidationResults(issues, warnings) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+    
+    let resultsHtml = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0; color: #333;">Content Validation</h3>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">×</button>
+      </div>
+    `;
+    
+    if (issues.length === 0 && warnings.length === 0) {
+      resultsHtml += `
+        <div style="padding: 2rem; text-align: center;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+          <h4 style="margin: 0 0 0.5rem 0; color: #10b981;">Content looks good!</h4>
+          <p style="margin: 0; color: #666;">No issues or warnings found.</p>
+        </div>
+      `;
+    } else {
+      if (issues.length > 0) {
+        resultsHtml += `
+          <div style="margin-bottom: 1.5rem;">
+            <h4 style="margin: 0 0 1rem 0; color: #dc2626;">❌ Issues (${issues.length})</h4>
+            <ul style="margin: 0; padding-left: 1.5rem; color: #666;">
+              ${issues.map(issue => `<li style="margin-bottom: 0.5rem;">${issue}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+      
+      if (warnings.length > 0) {
+        resultsHtml += `
+          <div>
+            <h4 style="margin: 0 0 1rem 0; color: #f59e0b;">⚠️ Warnings (${warnings.length})</h4>
+            <ul style="margin: 0; padding-left: 1.5rem; color: #666;">
+              ${warnings.map(warning => `<li style="margin-bottom: 0.5rem;">${warning}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+    }
+    
+    modalContent.innerHTML = resultsHtml;
+    modal.appendChild(modalContent);
+    
+    // Close on background click
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
+    
+    document.body.appendChild(modal);
+  }
+  
   </script>
 
 </section>

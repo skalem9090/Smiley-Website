@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Layout Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #faf7f0;
+        }
+        
+        .editor-feature-toolbar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f5f1e8;
+            border-radius: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 0.6rem 1rem;
+            border: 2px solid #8b4513;
+            background: #faf7f0;
+            color: #8b4513;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #8b4513;
+            color: #faf7f0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 69, 19, 0.2);
+        }
+        
+        .editor-container {
+            border: 2px solid #e8e3d8;
+            border-radius: 8px;
+            padding: 2rem;
+            background: white;
+            min-height: 400px;
+            margin-bottom: 2rem;
+        }
+        
+        .preview-pane {
+            border: 2px solid #e8e3d8;
+            border-radius: 8px;
+            padding: 2rem;
+            background: white;
+            min-height: 300px;
+            display: none;
+        }
+        
+        .preview-pane.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Editor Layout Test</h1>
+    
+    <div class="editor-feature-toolbar">
+        <button class="btn" onclick="alert('Export feature')">📤 Export</button>
+        <button class="btn" onclick="alert('Template feature')">📋 Templates</button>
+        <button class="btn" onclick="alert('Validation feature')">✓ Validate</button>
+        <div style="flex: 1;"></div>
+        <button class="btn" onclick="togglePreview()">👁️ Preview</button>
+    </div>
+    
+    <div class="editor-container">
+        <h2>Editor Area</h2>
+        <p>This is where the advanced editor will be displayed.</p>
+        <p>The preview is now below the editor instead of beside it.</p>
+    </div>
+    
+    <div class="preview-pane" id="preview-pane">
+        <h2>Live Preview</h2>
+        <p>This is the preview area. It appears below the editor when toggled.</p>
+    </div>
+    
+    <script>
+        function togglePreview() {
+            const previewPane = document.getElementById('preview-pane');
+            previewPane.classList.toggle('visible');
+        }
+    </script>
+</body>
+</html>

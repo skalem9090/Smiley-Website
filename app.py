@@ -694,6 +694,10 @@ def create_app():
             page=page, per_page=per_page, error_out=False
         )
         
+        # Get all tags with post counts for the tags section
+        from tag_manager import TagManager
+        all_tags = TagManager.get_all_tags_with_counts()
+        
         # Generate SEO data for explore page
         seo_meta = seo_manager.generate_meta_tags(
             page_type='website',
@@ -709,58 +713,15 @@ def create_app():
                              q=q,
                              tag=tag,
                              category=category,
+                             all_tags=all_tags,
                              seo_meta=seo_meta,
                              og_tags=og_tags,
                              structured_data=structured_data)
 
     @app.route('/tags')
     def tag_list():
-        """List all tags with post counts."""
-        from tag_manager import TagManager
-        
-        page = request.args.get('page', 1, type=int)
-        per_page = 20  # Tags per page
-        
-        # Get all tags with their post counts
-        tags_with_counts = TagManager.get_all_tags_with_counts()
-        
-        # Manual pagination for tags (since it's a list, not a query)
-        total_tags = len(tags_with_counts)
-        start = (page - 1) * per_page
-        end = start + per_page
-        paginated_tags = tags_with_counts[start:end]
-        
-        # Create pagination info
-        has_prev = page > 1
-        has_next = end < total_tags
-        prev_num = page - 1 if has_prev else None
-        next_num = page + 1 if has_next else None
-        
-        pagination_info = {
-            'has_prev': has_prev,
-            'has_next': has_next,
-            'prev_num': prev_num,
-            'next_num': next_num,
-            'page': page,
-            'total': total_tags,
-            'per_page': per_page
-        }
-        
-        # Generate SEO data for tags page
-        seo_meta = seo_manager.generate_meta_tags(
-            page_type='website',
-            title=f"All Tags | {app.config.get('SEO_SITE_NAME', 'Smileys Blog')}",
-            description="Browse all tags used in blog posts"
-        )
-        og_tags = seo_manager.generate_open_graph_tags(page_type='website')
-        structured_data = seo_manager.generate_structured_data(page_type='WebSite')
-        
-        return render_template('tag_list.html', 
-                             tags=paginated_tags,
-                             pagination=pagination_info,
-                             seo_meta=seo_meta,
-                             og_tags=og_tags,
-                             structured_data=structured_data)
+        """Redirect to explore page (tags are now integrated there)."""
+        return redirect(url_for('explore'))
 
     @app.route('/tag/<slug>')
     def tag_posts(slug):

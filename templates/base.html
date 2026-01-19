@@ -67,7 +67,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <link rel="stylesheet" href="/static/css/advanced-editor.css?v=2">
+    <!-- Prism.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
     <link rel="icon" type="image/png" href="/favicon.ico">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
@@ -81,7 +85,6 @@
         <a href="{{ url_for('index') }}">Home</a>
         <a href="{{ url_for('about') }}">About</a>
         <a href="{{ url_for('explore') }}">Explore</a>
-        <a href="{{ url_for('tag_list') }}">Tags</a>
         {% if current_user.is_authenticated and current_user.is_admin %}
           <!-- Developer-only navigation items -->
           <a href="{{ url_for('dashboard') }}" style="color: var(--accent); font-weight: 600;">Dashboard</a>
@@ -151,7 +154,6 @@
                 Explore Content
               </div>
               <a role="menuitem" href="{{ url_for('explore') }}">📚 All Posts</a>
-              <a role="menuitem" href="{{ url_for('tag_list') }}">🏷️ Browse Tags</a>
               <a role="menuitem" href="{{ url_for('search') }}">🔍 Search</a>
               
               <div style="padding: 0.75rem 1rem; background: var(--hover-bg); border-bottom: 1px solid var(--paper-border); font-weight: 600; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.5rem;">
@@ -342,6 +344,32 @@
         }
     });
     </script>
+    
+    <!-- Simple Rich Text Editor - No external dependencies -->
+    <script src="/static/js/advanced-editor/simple-editor.js?v=17"></script>
+    <!-- Prism.js for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <!-- Code Editor Module -->
+    <script src="/static/js/advanced-editor/code-editor.js"></script>
+    <!-- Content Blocks Module -->
+    <script src="/static/js/advanced-editor/content-blocks.js"></script>
+    <!-- Collaboration Modules -->
+    <script src="/static/js/advanced-editor/websocket-manager.js"></script>
+    <script src="/static/js/advanced-editor/collaboration-engine.js"></script>
+    <!-- SEO Analyzer Module -->
+    <script src="/static/js/advanced-editor/seo-analyzer.js"></script>
+    <!-- Export System Module -->
+    <script src="/static/js/advanced-editor/export-system.js"></script>
+    <!-- Template System Module -->
+    <script src="/static/js/advanced-editor/template-system.js"></script>
+    <!-- Content Validator Module -->
+    <script src="/static/js/advanced-editor/content-validator.js"></script>
+    <!-- Theme Manager -->
+    <script src="/static/js/theme-manager.js?v=2"></script>
+    <!-- Reading Experience Enhancements -->
+    <script src="/static/js/reading-experience.js?v=3"></script>
 {% block scripts %}{% endblock %}
   </body>
 </html>

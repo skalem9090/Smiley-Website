@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Fix Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #9b5e2b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #7d4a22;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Editor Fix Verification Tool</h1>
+    
+    <div class="test-card">
+        <h2>Step 1: Check Script Loading</h2>
+        <p>Verify that the cache-busting parameter is present:</p>
+        <div id="script-check"></div>
+        <button onclick="checkScriptVersion()">Check Script Version</button>
+    </div>
+
+    <div class="test-card">
+        <h2>Step 2: Check Global Variables</h2>
+        <p>Verify that window.advancedEditor is accessible:</p>
+        <div id="global-check"></div>
+        <button onclick="checkGlobalVariables()">Check Global Variables</button>
+    </div>
+
+    <div class="test-card">
+        <h2>Step 3: Simulate Button Click</h2>
+        <p>Test if the export function can access advancedEditor:</p>
+        <div id="function-check"></div>
+        <button onclick="testExportFunction()">Test Export Function</button>
+    </div>
+
+    <div class="test-card">
+        <h2>Step 4: Cache Status</h2>
+        <p>Check if browser is using cached resources:</p>
+        <div id="cache-check"></div>
+        <button onclick="checkCacheStatus()">Check Cache Status</button>
+    </div>
+
+    <div class="test-card">
+        <h2>Instructions</h2>
+        <div class="info">
+            <strong>Before running these tests:</strong>
+            <ol>
+                <li>Restart your Flask server</li>
+                <li>Hard refresh the dashboard (Ctrl+Shift+R)</li>
+                <li>Then come back here and run these tests</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function checkScriptVersion() {
+            const result = document.getElementById('script-check');
+            const scripts = document.querySelectorAll('script[src*="simple-editor"]');
+            
+            if (scripts.length === 0) {
+                result.innerHTML = '<div class="status info">ℹ️ This is a test page. Go to the dashboard to check.</div>';
+                return;
+            }
+            
+            let html = '';
+            scripts.forEach(script => {
+                const src = script.src;
+                const hasVersion = src.includes('?v=');
+                const version = hasVersion ? src.split('?v=')[1] : 'none';
+                
+                if (hasVersion && version === '2') {
+                    html += `<div class="status success">✓ Script loaded with cache buster: v${version}</div>`;
+                } else if (hasVersion) {
+                    html += `<div class="status error">✗ Old version: v${version}</div>`;
+                } else {
+                    html += `<div class="status error">✗ No cache buster found</div>`;
+                }
+                html += `<pre>${src}</pre>`;
+            });
+            
+            result.innerHTML = html;
+        }
+
+        function checkGlobalVariables() {
+            const result = document.getElementById('global-check');
+            let html = '';
+            
+            // Check if window.advancedEditor exists
+            if (typeof window.advancedEditor !== 'undefined') {
+                html += '<div class="status success">✓ window.advancedEditor is defined</div>';
+                html += `<pre>Type: ${typeof window.advancedEditor}\nValue: ${window.advancedEditor}</pre>`;
+            } else {
+                html += '<div class="status error">✗ window.advancedEditor is undefined</div>';
+                html += '<p>This means the editor hasn\'t been initialized yet, or the cache is still old.</p>';
+            }
+            
+            // Check if AdvancedEditor class exists
+            if (typeof window.AdvancedEditor !== 'undefined') {
+                html += '<div class="status success">✓ window.AdvancedEditor class is available</div>';
+            } else {
+                html += '<div class="status error">✗ window.AdvancedEditor class is not available</div>';
+            }
+            
+            result.innerHTML = html;
+        }
+
+        function testExportFunction() {
+            const result = document.getElementById('function-check');
+            let html = '';
+            
+            // Check if export function exists
+            if (typeof window.openExportDialog === 'function') {
+                html += '<div class="status success">✓ window.openExportDialog function exists</div>';
+                
+                // Try to get the function source to check if it uses window.advancedEditor
+                const funcSource = window.openExportDialog.toString();
+                if (funcSource.includes('window.advancedEditor')) {
+                    html += '<div class="status success">✓ Function uses window.advancedEditor (correct)</div>';
+                } else if (funcSource.includes('advancedEditor')) {
+                    html += '<div class="status error">✗ Function uses advancedEditor without window (old version)</div>';
+                } else {
+                    html += '<div class="status info">ℹ️ Cannot determine variable usage</div>';
+                }
+            } else {
+                html += '<div class="status error">✗ window.openExportDialog function not found</div>';
+                html += '<p>This is expected on this test page. Check on the dashboard.</p>';
+            }
+            
+            result.innerHTML = html;
+        }
+
+        function checkCacheStatus() {
+            const result = document.getElementById('cache-check');
+            let html = '';
+            
+            // Check if service worker is active
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    if (registrations.length > 0) {
+                        html += '<div class="status info">ℹ️ Service worker detected (may cache resources)</div>';
+                    } else {
+                        html += '<div class="status success">✓ No service worker (good for testing)</div>';
+                    }
+                    result.innerHTML = html;
+                });
+            } else {
+                html += '<div class="status success">✓ Service workers not supported</div>';
+                result.innerHTML = html;
+            }
+            
+            // Check cache API
+            if ('caches' in window) {
+                html += '<div class="status info">ℹ️ Cache API available</div>';
+                html += '<p>Recommendation: Clear cache via DevTools (F12 → Network → Disable cache)</p>';
+            }
+            
+            result.innerHTML = html;
+        }
+
+        // Auto-run checks on load
+        window.addEventListener('load', () => {
+            checkScriptVersion();
+            checkGlobalVariables();
+            checkCacheStatus();
+        });
+    </script>
+</body>
+</html>

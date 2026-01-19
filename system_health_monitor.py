@@ -346,9 +346,10 @@ class SystemHealthMonitor:
             # Test RSS generation
             rss_start = time.time()
             try:
-                rss_content = feed_gen.generate_rss_feed(limit=5)  # Small test
+                rss_content = feed_gen.generate_rss_feed()  # Generate feed
                 rss_time = time.time() - rss_start
                 rss_success = len(rss_content) > 0
+                rss_error_msg = None
             except Exception as rss_error:
                 rss_time = time.time() - rss_start
                 rss_success = False
@@ -357,9 +358,10 @@ class SystemHealthMonitor:
             # Test Atom generation
             atom_start = time.time()
             try:
-                atom_content = feed_gen.generate_atom_feed(limit=5)  # Small test
+                atom_content = feed_gen.generate_atom_feed()  # Generate feed
                 atom_time = time.time() - atom_start
                 atom_success = len(atom_content) > 0
+                atom_error_msg = None
             except Exception as atom_error:
                 atom_time = time.time() - atom_start
                 atom_success = False

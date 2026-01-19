@@ -28,6 +28,10 @@ feedgen==1.0.0
 # Email Service
 sendgrid==6.11.0
 
+# WSGI Server
+gunicorn==23.0.0  # For Linux/Unix
+waitress==3.0.2   # For Windows
+
 # Testing (Optional)
 pytest==7.4.3
 hypothesis==6.92.1
