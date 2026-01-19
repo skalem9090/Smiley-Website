@@ -1,0 +1,37 @@
+# Core Flask Dependencies
+Flask==2.3.3
+Flask-Login==0.6.3
+Flask-Migrate==4.0.5
+Flask-SQLAlchemy==3.1.1
+Flask-WTF==1.2.2
+
+# Database and ORM
+SQLAlchemy==2.0.45
+
+# Security and Validation
+bleach==6.3.0
+email-validator==2.1.1
+WTForms==3.2.1
+
+# Environment and Configuration
+python-dotenv==1.2.1
+
+# Image Processing
+Pillow==10.4.0
+
+# Scheduling
+APScheduler==3.10.4
+
+# RSS/Atom Feed Generation
+feedgen==1.0.0
+
+# Email Service
+sendgrid==6.11.0
+
+# Testing (Optional)
+pytest==7.4.3
+hypothesis==6.92.1
+
+# Utilities
+requests==2.32.3
+click==8.2.1

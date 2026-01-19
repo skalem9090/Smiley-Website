@@ -1623,6 +1623,55 @@ def create_app():
             # Log error and return 500
             app.logger.error(f"Error generating sitemap: {str(e)}")
             abort(500)
+
+    @app.route('/sitemap')
+    def sitemap_html():
+        """Generate and serve HTML sitemap with clickable links."""
+        try:
+            # Get all published posts
+            published_posts = Post.query.filter_by(status='published').order_by(Post.created_at.desc()).all()
+            
+            # Get all tags that have posts (simplified query to avoid potential issues)
+            try:
+                from models import Tag
+                tags_with_posts = db.session.query(Tag).join(Tag.posts).filter(Post.status == 'published').distinct().all()
+            except Exception:
+                # Fallback if tag query fails
+                tags_with_posts = []
+            
+            # Organize posts by category
+            posts_by_category = {}
+            for post in published_posts:
+                category = post.category or 'Uncategorized'
+                if category not in posts_by_category:
+                    posts_by_category[category] = []
+                posts_by_category[category].append(post)
+            
+            # Generate SEO data for sitemap page (with fallbacks)
+            try:
+                seo_meta = seo_manager.generate_meta_tags(page_type='website')
+                og_tags = seo_manager.generate_open_graph_tags(page_type='website')
+                structured_data = seo_manager.generate_structured_data(page_type='WebSite')
+            except Exception:
+                # Fallback SEO data
+                seo_meta = {'title': 'Site Map', 'description': 'Browse all content on this site'}
+                og_tags = {}
+                structured_data = {}
+            
+            return render_template('sitemap.html',
+                                 posts_by_category=posts_by_category,
+                                 tags=tags_with_posts,
+                                 total_posts=len(published_posts),
+                                 seo_meta=seo_meta,
+                                 og_tags=og_tags,
+                                 structured_data=structured_data)
+            
+        except Exception as e:
+            # Log error and return 500
+            app.logger.error(f"Error generating HTML sitemap: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
+            abort(500)
     
     # System Health and Monitoring routes
     @app.route('/health')

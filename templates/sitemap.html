@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block title %}Site Map - {{ config.get('SEO_SITE_NAME', 'Smiley\'s Blog') }}{% endblock %}
+
+{% block content %}
+<div class="sitemap-container">
+    <header class="sitemap-header">
+        <h1>🗺️ Site Map</h1>
+        <p class="sitemap-description">
+            Explore all the content on {{ config.get('SEO_SITE_NAME', 'Smiley\'s Blog') }}. 
+            Find posts, categories, and tags easily with our organized site map.
+        </p>
+        <div class="sitemap-stats">
+            <span class="stat-item">📝 {{ total_posts }} Posts</span>
+            <span class="stat-item">🏷️ {{ tags|length }} Tags</span>
+            <span class="stat-item">📂 {{ posts_by_category|length }} Categories</span>
+        </div>
+    </header>
+
+    <div class="sitemap-grid">
+        <!-- Main Pages Section -->
+        <section class="sitemap-section">
+            <h2 class="section-title">
+                <span class="section-icon">🏠</span>
+                Main Pages
+            </h2>
+            <div class="sitemap-links">
+                <a href="{{ url_for('index') }}" class="sitemap-link main-page">
+                    <span class="link-icon">🏠</span>
+                    <span class="link-text">Home</span>
+                    <span class="link-desc">Latest posts and featured content</span>
+                </a>
+                <a href="{{ url_for('about') }}" class="sitemap-link main-page">
+                    <span class="link-icon">👤</span>
+                    <span class="link-text">About</span>
+                    <span class="link-desc">Learn more about the author</span>
+                </a>
+                <a href="{{ url_for('explore') }}" class="sitemap-link main-page">
+                    <span class="link-icon">🔍</span>
+                    <span class="link-text">Explore</span>
+                    <span class="link-desc">Browse and search all posts</span>
+                </a>
+                <a href="{{ url_for('tag_list') }}" class="sitemap-link main-page">
+                    <span class="link-icon">🏷️</span>
+                    <span class="link-text">Tags</span>
+                    <span class="link-desc">Browse posts by topic</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- Categories Section -->
+        {% if posts_by_category %}
+        <section class="sitemap-section">
+            <h2 class="section-title">
+                <span class="section-icon">📂</span>
+                Categories
+            </h2>
+            <div class="sitemap-links">
+                {% for category, posts in posts_by_category.items() %}
+                <div class="category-group">
+                    <a href="{{ url_for('explore', category=category) }}" class="sitemap-link category">
+                        <span class="link-icon">📂</span>
+                        <span class="link-text">{{ category }}</span>
+                        <span class="link-count">{{ posts|length }} posts</span>
+                    </a>
+                    <div class="category-posts">
+                        {% for post in posts[:5] %}
+                        <a href="{{ url_for('post_view', post_id=post.id) }}" class="sitemap-link post">
+                            <span class="link-icon">📝</span>
+                            <span class="link-text">{{ post.title }}</span>
+                            <span class="link-date">{{ post.created_at.strftime('%b %d, %Y') }}</span>
+                        </a>
+                        {% endfor %}
+                        {% if posts|length > 5 %}
+                        <a href="{{ url_for('explore', category=category) }}" class="sitemap-link more-posts">
+                            <span class="link-icon">➕</span>
+                            <span class="link-text">View {{ posts|length - 5 }} more posts...</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Tags Section -->
+        {% if tags %}
+        <section class="sitemap-section">
+            <h2 class="section-title">
+                <span class="section-icon">🏷️</span>
+                Popular Tags
+            </h2>
+            <div class="sitemap-tags">
+                {% for tag in tags[:20] %}
+                <a href="{{ url_for('tag_posts', slug=tag.slug) }}" class="sitemap-tag">
+                    <span class="tag-name">{{ tag.name }}</span>
+                    <span class="tag-count">{{ tag.post_count or 0 }}</span>
+                </a>
+                {% endfor %}
+                {% if tags|length > 20 %}
+                <a href="{{ url_for('tag_list') }}" class="sitemap-tag more-tags">
+                    <span class="tag-name">View all tags...</span>
+                </a>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Feeds & Tools Section -->
+        <section class="sitemap-section">
+            <h2 class="section-title">
+                <span class="section-icon">🔧</span>
+                Feeds & Tools
+            </h2>
+            <div class="sitemap-links">
+                <a href="{{ url_for('rss_feed') }}" class="sitemap-link feed" target="_blank">
+                    <span class="link-icon">📡</span>
+                    <span class="link-text">RSS Feed</span>
+                    <span class="link-desc">Subscribe to updates</span>
+                </a>
+                <a href="{{ url_for('atom_feed') }}" class="sitemap-link feed" target="_blank">
+                    <span class="link-icon">📡</span>
+                    <span class="link-text">Atom Feed</span>
+                    <span class="link-desc">Alternative feed format</span>
+                </a>
+                <a href="{{ url_for('sitemap') }}" class="sitemap-link feed" target="_blank">
+                    <span class="link-icon">🗺️</span>
+                    <span class="link-text">XML Sitemap</span>
+                    <span class="link-desc">For search engines</span>
+                </a>
+            </div>
+        </section>
+    </div>
+
+    <footer class="sitemap-footer">
+        <p>
+            <strong>{{ total_posts }}</strong> posts across <strong>{{ posts_by_category|length }}</strong> categories
+            • Last updated: Today
+        </p>
+        <p>
+            <a href="{{ url_for('sitemap') }}" target="_blank">XML Sitemap</a> • 
+            <a href="{{ url_for('rss_feed') }}" target="_blank">RSS Feed</a> • 
+            <a href="{{ url_for('atom_feed') }}" target="_blank">Atom Feed</a>
+        </p>
+    </footer>
+</div>
+
+<style>
+.sitemap-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.sitemap-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.sitemap-header h1 {
+    font-size: 2.5rem;
+    margin: 0 0 1rem 0;
+    font-weight: 700;
+}
+
+.sitemap-description {
+    font-size: 1.1rem;
+    margin: 0 0 1.5rem 0;
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+.sitemap-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    background: rgba(255,255,255,0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.sitemap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.sitemap-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #e1e5e9;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sitemap-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0 0 1.5rem 0;
+    color: #2d3748;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.section-icon {
+    font-size: 1.2rem;
+}
+
+.sitemap-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sitemap-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    text-decoration: none;
+    color: #4a5568;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.sitemap-link:hover {
+    background: #f7fafc;
+    color: #2d3748;
+    border-color: #e2e8f0;
+    transform: translateX(4px);
+}
+
+.sitemap-link.main-page {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.sitemap-link.main-page:hover {
+    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+    transform: translateX(4px) scale(1.02);
+    color: white;
+}
+
+.sitemap-link.category {
+    background: #edf2f7;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.sitemap-link.category:hover {
+    background: #e2e8f0;
+}
+
+.sitemap-link.post {
+    padding-left: 2rem;
+    font-size: 0.9rem;
+    color: #718096;
+}
+
+.sitemap-link.more-posts {
+    padding-left: 2rem;
+    font-style: italic;
+    color: #a0aec0;
+}
+
+.sitemap-link.feed {
+    background: #f0fff4;
+    border-color: #c6f6d5;
+}
+
+.sitemap-link.feed:hover {
+    background: #c6f6d5;
+}
+
+.link-icon {
+    font-size: 1.1rem;
+    min-width: 20px;
+}
+
+.link-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.link-desc {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.8);
+    font-style: italic;
+}
+
+.sitemap-link:not(.main-page) .link-desc {
+    color: #a0aec0;
+}
+
+.link-count, .link-date {
+    font-size: 0.8rem;
+    color: #a0aec0;
+    background: #edf2f7;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.category-group {
+    margin-bottom: 1rem;
+}
+
+.category-posts {
+    margin-top: 0.5rem;
+    border-left: 2px solid #e2e8f0;
+    margin-left: 1rem;
+}
+
+.sitemap-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.sitemap-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: #f7fafc;
+    color: #4a5568;
+    text-decoration: none;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.sitemap-tag:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.tag-count {
+    background: #e2e8f0;
+    color: #718096;
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.sitemap-tag:hover .tag-count {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+.more-tags {
+    background: #667eea;
+    color: white;
+}
+
+.more-tags:hover {
+    background: #5a67d8;
+}
+
+.sitemap-footer {
+    text-align: center;
+    padding: 2rem;
+    background: #f7fafc;
+    border-radius: 12px;
+    color: #718096;
+    border: 1px solid #e2e8f0;
+}
+
+.sitemap-footer p {
+    margin: 0.5rem 0;
+}
+
+.sitemap-footer a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.sitemap-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .sitemap-container {
+        padding: 1rem;
+    }
+    
+    .sitemap-header h1 {
+        font-size: 2rem;
+    }
+    
+    .sitemap-stats {
+        gap: 1rem;
+    }
+    
+    .stat-item {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.8rem;
+    }
+    
+    .sitemap-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .sitemap-section {
+        padding: 1rem;
+    }
+    
+    .section-title {
+        font-size: 1.1rem;
+    }
+    
+    .sitemap-link {
+        padding: 0.6rem;
+    }
+    
+    .link-desc {
+        display: none;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .sitemap-section {
+        background: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .section-title {
+        color: #e2e8f0;
+        border-color: #4a5568;
+    }
+    
+    .sitemap-link {
+        color: #cbd5e0;
+    }
+    
+    .sitemap-link:hover {
+        background: #4a5568;
+        color: #e2e8f0;
+        border-color: #718096;
+    }
+    
+    .sitemap-footer {
+        background: #2d3748;
+        border-color: #4a5568;
+        color: #cbd5e0;
+    }
+}
+</style>
+{% endblock %}
