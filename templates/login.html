@@ -3,11 +3,50 @@
 {% block title %}Login - Smileys Blog{% endblock %}
 
 {% block content %}
-<h2>Developer Login</h2>
-<form method="post">
-  {{ form.hidden_tag() }}
-  <label>{{ form.username.label }}<br>{{ form.username(size=32) }}</label><br>
-  <label>{{ form.password.label }}<br>{{ form.password(type='password') }}</label><br>
-  <button type="submit">Login</button>
-</form>
+<div class="container">
+  <div class="card" style="max-width: 400px; margin: 4rem auto;">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <h2 style="color: var(--paper-text); margin-bottom: 0.5rem; font-weight: 700;">Developer Login</h2>
+      <p style="color: var(--muted); font-size: 0.9rem;">Access the dashboard to manage your blog</p>
+    </div>
+    
+    <form method="post">
+      {{ form.hidden_tag() }}
+      
+      <div style="margin-bottom: 1.5rem;">
+        <label for="{{ form.username.id }}">{{ form.username.label }}</label>
+        {{ form.username(class='form-control', placeholder='Enter your username') }}
+        {% if form.username.errors %}
+          <div class="form-errors">
+            {% for error in form.username.errors %}
+              <span class="error">{{ error }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      
+      <div style="margin-bottom: 2rem;">
+        <label for="{{ form.password.id }}">{{ form.password.label }}</label>
+        {{ form.password(class='form-control', placeholder='Enter your password') }}
+        {% if form.password.errors %}
+          <div class="form-errors">
+            {% for error in form.password.errors %}
+              <span class="error">{{ error }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      
+      <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+        Login to Dashboard
+      </button>
+    </form>
+    
+    <div style="text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--paper-border);">
+      <a href="{{ url_for('index') }}" style="color: var(--muted); text-decoration: none; font-size: 0.9rem;">
+        ← Back to Blog
+      </a>
+    </div>
+  </div>
+</div>
 {% endblock %}

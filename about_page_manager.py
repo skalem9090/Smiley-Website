@@ -172,11 +172,9 @@ class AboutPageManager:
             profile.profile_image = unique_filename
             db.session.commit()
             
-            # Clean up old image
+            # Clean up old image with Windows-safe handling
             if old_image and old_image != unique_filename:
-                old_path = os.path.join(self.upload_folder, old_image)
-                if os.path.exists(old_path):
-                    os.remove(old_path)
+                self._safe_delete_file(old_image)
             
             return True, "Profile image uploaded successfully", unique_filename
             
@@ -197,30 +195,83 @@ class AboutPageManager:
     
     def delete_profile_image(self):
         """
-        Delete current profile image.
+        Delete current profile image with Windows-safe file handling.
         
         Returns:
             tuple: (success: bool, message: str)
         """
+        import time
+        import gc
+        
         try:
             profile = self.get_author_profile()
             if not profile.profile_image:
                 return False, "No profile image to delete"
             
-            # Delete file
-            filepath = os.path.join(self.upload_folder, profile.profile_image)
-            if os.path.exists(filepath):
-                os.remove(filepath)
+            old_filename = profile.profile_image
+            filepath = os.path.join(self.upload_folder, old_filename)
             
-            # Update profile
+            # Update profile first to prevent serving the file
             profile.profile_image = None
             db.session.commit()
+            
+            # Force garbage collection to release any file handles
+            gc.collect()
+            
+            # Try to delete the file with retries for Windows file locking
+            if os.path.exists(filepath):
+                max_retries = 5
+                for attempt in range(max_retries):
+                    try:
+                        os.remove(filepath)
+                        break
+                    except (OSError, PermissionError) as e:
+                        if attempt < max_retries - 1:
+                            # Wait a bit and try again
+                            time.sleep(0.5)
+                            gc.collect()  # Force garbage collection again
+                        else:
+                            # If we can't delete the file, that's okay - the database is updated
+                            # The file will be cleaned up later or on next upload
+                            return True, f"Profile image removed from profile (file cleanup will happen later: {str(e)})"
             
             return True, "Profile image deleted successfully"
             
         except Exception as e:
             db.session.rollback()
             return False, f"Error deleting image: {str(e)}"
+    
+    def _safe_delete_file(self, filename):
+        """
+        Safely delete a file with Windows file locking handling.
+        
+        Args:
+            filename: Name of the file to delete
+        """
+        import time
+        import gc
+        
+        if not filename:
+            return
+            
+        filepath = os.path.join(self.upload_folder, filename)
+        if not os.path.exists(filepath):
+            return
+            
+        # Force garbage collection to release any file handles
+        gc.collect()
+        
+        # Try to delete the file with retries
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                os.remove(filepath)
+                return
+            except (OSError, PermissionError):
+                if attempt < max_retries - 1:
+                    time.sleep(0.2)
+                    gc.collect()
+                # If we can't delete, just leave it - it will be cleaned up later
     
     def _allowed_file(self, filename):
         """Check if file extension is allowed."""
@@ -270,3 +321,37 @@ class AboutPageManager:
         }
         
         return stats
+    
+    def cleanup_orphaned_files(self):
+        """
+        Clean up orphaned profile image files that are no longer referenced.
+        
+        Returns:
+            tuple: (success: bool, message: str, cleaned_count: int)
+        """
+        try:
+            if not os.path.exists(self.upload_folder):
+                return True, "Upload folder does not exist", 0
+            
+            # Get current profile image
+            profile = self.get_author_profile()
+            current_image = profile.profile_image if profile else None
+            
+            cleaned_count = 0
+            
+            # Find all profile_* files in upload folder
+            for filename in os.listdir(self.upload_folder):
+                if filename.startswith('profile_') and filename != current_image:
+                    filepath = os.path.join(self.upload_folder, filename)
+                    try:
+                        if os.path.isfile(filepath):
+                            os.remove(filepath)
+                            cleaned_count += 1
+                    except (OSError, PermissionError):
+                        # Skip files that can't be deleted
+                        continue
+            
+            return True, f"Cleanup completed. Removed {cleaned_count} orphaned files.", cleaned_count
+            
+        except Exception as e:
+            return False, f"Error during cleanup: {str(e)}", 0

@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Comment Moderation{% endblock %}
+
+{% block content %}
+<div class="comment-moderation">
+    <div class="management-header">
+        <h1>Comment Moderation</h1>
+        <p>Manage and moderate blog comments.</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
+        <div class="stat-card" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef; text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#007bff; margin-bottom:0.5rem;">{{ stats.total_comments }}</div>
+            <div style="color:#666; font-size:0.9rem;">Total Comments</div>
+        </div>
+        
+        <div class="stat-card" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef; text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#28a745; margin-bottom:0.5rem;">{{ stats.approved_comments }}</div>
+            <div style="color:#666; font-size:0.9rem;">Approved</div>
+        </div>
+        
+        <div class="stat-card" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef; text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#ffc107; margin-bottom:0.5rem;">{{ stats.pending_comments }}</div>
+            <div style="color:#666; font-size:0.9rem;">Pending Review</div>
+        </div>
+        
+        <div class="stat-card" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef; text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#dc3545; margin-bottom:0.5rem;">{{ stats.spam_comments }}</div>
+            <div style="color:#666; font-size:0.9rem;">Spam</div>
+        </div>
+        
+        <div class="stat-card" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef; text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#17a2b8; margin-bottom:0.5rem;">{{ stats.recent_comments }}</div>
+            <div style="color:#666; font-size:0.9rem;">Last 30 Days</div>
+        </div>
+        
+        <div class="stat-card" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef; text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#6f42c1; margin-bottom:0.5rem;">{{ "%.1f"|format(stats.approval_rate) }}%</div>
+            <div style="color:#666; font-size:0.9rem;">Approval Rate</div>
+        </div>
+    </div>
+
+    <!-- Top Commented Posts -->
+    {% if stats.top_commented_posts %}
+    <div class="top-posts-section" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef; margin-bottom:2rem;">
+        <h3 style="margin:0 0 1rem 0; color:#333;">Most Commented Posts</h3>
+        <div class="top-posts-list">
+            {% for post in stats.top_commented_posts %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; border-bottom:1px solid #f1f3f4;">
+                <span style="color:#333;">{{ post.title }}</span>
+                <span style="background:#007bff; color:white; padding:0.25rem 0.5rem; border-radius:12px; font-size:0.8rem;">{{ post.count }} comments</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pending Comments Section -->
+    <div class="pending-comments-section" style="background:white; padding:1.5rem; border-radius:8px; border:1px solid #e9ecef;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h3 style="margin:0; color:#333;">Pending Comments ({{ pending_comments|length }})</h3>
+            
+            {% if pending_comments %}
+            <div class="bulk-actions" style="display:flex; align-items:center; gap:1rem;">
+                <form method="POST" id="bulk-action-form" style="display:flex; align-items:center; gap:0.5rem;">
+                    {{ bulk_form.hidden_tag() }}
+                    {{ bulk_form.action(style="padding:0.5rem; border:1px solid #ced4da; border-radius:4px; font-size:0.9rem;") }}
+                    <button type="submit" class="btn" style="background:#007bff; color:white; border:none; padding:0.5rem 1rem; border-radius:4px; font-size:0.9rem;">
+                        Apply to Selected
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if pending_comments %}
+        <div class="comments-list">
+            {% for comment in pending_comments %}
+            <div class="comment-item" style="border:1px solid #e9ecef; border-radius:8px; padding:1rem; margin-bottom:1rem; background:#f8f9fa;">
+                <div style="display:flex; align-items:flex-start; gap:1rem;">
+                    <input type="checkbox" name="selected_comments" value="{{ comment.id }}" form="bulk-action-form" 
+                           style="margin-top:0.25rem;">
+                    
+                    <div style="flex:1;">
+                        <div class="comment-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+                            <div>
+                                <div style="font-weight:600; color:#333; margin-bottom:0.25rem;">
+                                    {{ comment.author_name }} 
+                                    <span style="color:#666; font-weight:normal; font-size:0.9rem;">({{ comment.author_email }})</span>
+                                </div>
+                                <div style="color:#666; font-size:0.85rem;">
+                                    On: <a href="{{ url_for('post_view', post_id=comment.post.id) }}" style="color:#007bff; text-decoration:none;">{{ comment.post.title }}</a>
+                                </div>
+                                <div style="color:#666; font-size:0.85rem;">
+                                    {{ comment.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                </div>
+                            </div>
+                            
+                            <div class="comment-actions" style="display:flex; gap:0.5rem;">
+                                <button data-comment-id="{{ comment.id }}" data-action="approve"
+                                        class="btn-small moderate-comment-btn" 
+                                        style="padding:0.25rem 0.75rem; font-size:0.8rem; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">
+                                    Approve
+                                </button>
+                                <button data-comment-id="{{ comment.id }}" data-action="reject"
+                                        class="btn-small moderate-comment-btn" 
+                                        style="padding:0.25rem 0.75rem; font-size:0.8rem; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">
+                                    Reject
+                                </button>
+                                <button data-comment-id="{{ comment.id }}" data-action="spam"
+                                        class="btn-small moderate-comment-btn" 
+                                        style="padding:0.25rem 0.75rem; font-size:0.8rem; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">
+                                    Spam
+                                </button>
+                                <button data-comment-id="{{ comment.id }}" data-action="delete"
+                                        class="btn-small delete-comment-btn" 
+                                        style="padding:0.25rem 0.75rem; font-size:0.8rem; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="comment-content" style="background:white; padding:1rem; border-radius:6px; border-left:4px solid #007bff; color:#333; line-height:1.6;">
+                            {{ comment.content|nl2br }}
+                        </div>
+                        
+                        {% if comment.ip_address %}
+                        <div style="margin-top:0.5rem; color:#666; font-size:0.8rem;">
+                            IP: {{ comment.ip_address }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:3rem; color:#666; font-style:italic;">
+            <div style="font-size:3rem; margin-bottom:1rem;">✅</div>
+            <div>No pending comments! All caught up.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function moderateComment(commentId, action) {
+    let confirmMessage = 'Are you sure you want to ' + action + ' this comment?';
+    if (action === 'delete') {
+        confirmMessage = 'Are you sure you want to permanently delete this comment? This action cannot be undone.';
+    }
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    fetch('/api/comment/moderate/' + commentId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({ action: action })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const message = document.createElement('div');
+            message.style.cssText = 'position:fixed; top:20px; right:20px; background:#28a745; color:white; padding:1rem; border-radius:6px; z-index:1000;';
+            message.textContent = data.message;
+            document.body.appendChild(message);
+            
+            // Remove the comment from the list
+            const commentItem = document.querySelector(`input[value="${commentId}"]`).closest('.comment-item');
+            commentItem.style.transition = 'opacity 0.3s';
+            commentItem.style.opacity = '0';
+            setTimeout(() => commentItem.remove(), 300);
+            
+            // Remove success message after 3 seconds
+            setTimeout(() => message.remove(), 3000);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while moderating the comment.');
+    });
+}
+
+// Handle bulk action form submission
+document.getElementById('bulk-action-form').addEventListener('submit', function(e) {
+    const selectedComments = document.querySelectorAll('input[name="selected_comments"]:checked');
+    if (selectedComments.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one comment.');
+        return;
+    }
+    
+    const action = document.querySelector('select[name="action"]').value;
+    if (!action) {
+        e.preventDefault();
+        alert('Please select an action.');
+        return;
+    }
+    
+    const confirmMessage = `Are you sure you want to ${action} ${selectedComments.length} selected comment(s)?`;
+    if (!confirm(confirmMessage)) {
+        e.preventDefault();
+    }
+});
+
+// Handle delete button clicks
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('delete-comment-btn')) {
+        const commentId = e.target.getAttribute('data-comment-id');
+        if (confirm('Are you sure you want to delete this comment permanently?')) {
+            moderateComment(commentId, 'delete');
+        }
+    } else if (e.target.classList.contains('moderate-comment-btn')) {
+        const commentId = e.target.getAttribute('data-comment-id');
+        const action = e.target.getAttribute('data-action');
+        moderateComment(commentId, action);
+    }
+});
+
+// Select all checkbox functionality
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const commentCheckboxes = document.querySelectorAll('input[name="selected_comments"]');
+    
+    commentCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+</script>
+
+<style>
+.comment-moderation {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.management-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.management-header h1 {
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.management-header p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.btn-small:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.comment-item:hover {
+    background: #f1f3f4 !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .comment-moderation {
+        padding: 1rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .comment-actions {
+        flex-direction: column !important;
+        gap: 0.25rem !important;
+    }
+    
+    .btn-small {
+        font-size: 0.75rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+}
+</style>
+
+{% endblock %}

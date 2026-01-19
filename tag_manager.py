@@ -258,6 +258,38 @@ class TagManager:
         return TagManager.get_posts_by_tag(tag, status_filter) if status_filter else TagManager.get_posts_by_tag(tag)
 
     @staticmethod
+    def get_posts_query_by_tag_name(tag_name: str, published_only: bool = True):
+        """
+        Get query object for posts associated with a specific tag by name.
+        This is useful for pagination.
+        
+        Args:
+            tag_name: Name of the tag to get posts for
+            published_only: Whether to only return published posts
+            
+        Returns:
+            SQLAlchemy query object for Post objects associated with the tag
+        """
+        if not tag_name:
+            return Post.query.filter(False)  # Return empty query
+        
+        tag = Tag.query.filter_by(name=tag_name).first()
+        if not tag:
+            return Post.query.filter(False)  # Return empty query
+        
+        query = (
+            Post.query
+            .join(post_tags, Post.id == post_tags.c.post_id)
+            .filter(post_tags.c.tag_id == tag.id)
+            .order_by(Post.created_at.desc())
+        )
+        
+        if published_only:
+            query = query.filter(Post.status == 'published')
+        
+        return query
+
+    @staticmethod
     def get_all_tags_with_counts() -> List[Dict[str, Any]]:
         """
         Get all tags with their post counts.

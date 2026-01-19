@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Newsletter Management{% endblock %}
+
+{% block content %}
+<div class="newsletter-management">
+    <div class="management-header">
+        <h1>Newsletter Management</h1>
+        <p>Manage newsletter subscriptions and send digest emails.</p>
+    </div>
+    
+    <!-- Newsletter Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>{{ stats.confirmed_subscriptions }}</h3>
+            <p>Active Subscribers</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ "%.1f"|format(stats.confirmation_rate) }}%</h3>
+            <p>Confirmation Rate</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.recent_subscriptions }}</h3>
+            <p>New This Month</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.unsubscribed_count }}</h3>
+            <p>Unsubscribed</p>
+        </div>
+    </div>
+    
+    <!-- Frequency Breakdown -->
+    <div class="frequency-breakdown">
+        <h2>Subscription Frequency Breakdown</h2>
+        <div class="frequency-stats">
+            <div class="frequency-item">
+                <span class="frequency-label">Weekly</span>
+                <span class="frequency-count">{{ stats.frequency_breakdown.weekly }}</span>
+                <div class="frequency-bar">
+                    <div class="frequency-fill" style="width: {{ (stats.frequency_breakdown.weekly / stats.confirmed_subscriptions * 100) if stats.confirmed_subscriptions > 0 else 0 }}%"></div>
+                </div>
+            </div>
+            <div class="frequency-item">
+                <span class="frequency-label">Bi-weekly</span>
+                <span class="frequency-count">{{ stats.frequency_breakdown['bi-weekly'] }}</span>
+                <div class="frequency-bar">
+                    <div class="frequency-fill" style="width: {{ (stats.frequency_breakdown['bi-weekly'] / stats.confirmed_subscriptions * 100) if stats.confirmed_subscriptions > 0 else 0 }}%"></div>
+                </div>
+            </div>
+            <div class="frequency-item">
+                <span class="frequency-label">Monthly</span>
+                <span class="frequency-count">{{ stats.frequency_breakdown.monthly }}</span>
+                <div class="frequency-bar">
+                    <div class="frequency-fill" style="width: {{ (stats.frequency_breakdown.monthly / stats.confirmed_subscriptions * 100) if stats.confirmed_subscriptions > 0 else 0 }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Digest Management -->
+    <div class="digest-management">
+        <h2>Send Newsletter Digest</h2>
+        <div class="digest-actions">
+            <form method="POST" class="digest-form">
+                {{ csrf_token() }}
+                <div class="form-group">
+                    <label for="frequency">Digest Frequency:</label>
+                    <select name="frequency" id="frequency" class="form-select">
+                        <option value="weekly">Weekly</option>
+                        <option value="bi-weekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+                
+                <div class="digest-buttons">
+                    <button type="submit" name="action" value="preview_digest" class="btn btn-outline">
+                        Preview Digest
+                    </button>
+                    <button type="submit" name="action" value="send_digest" class="btn btn-primary" 
+                            onclick="return confirm('Are you sure you want to send the digest to all subscribers?')">
+                        Send Digest
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Recent Subscriptions -->
+    <div class="recent-subscriptions">
+        <h2>Recent Subscriptions</h2>
+        {% if recent_subscriptions %}
+            <div class="subscriptions-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Frequency</th>
+                            <th>Confirmed</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subscription in recent_subscriptions %}
+                            <tr>
+                                <td>{{ subscription.email }}</td>
+                                <td>{{ subscription.frequency|title }}</td>
+                                <td>{{ subscription.confirmed_at.strftime('%Y-%m-%d %H:%M') if subscription.confirmed_at else 'Pending' }}</td>
+                                <td>{{ subscription.subscribed_at.strftime('%Y-%m-%d') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="no-subscriptions">No recent subscriptions.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Newsletter Settings -->
+    <div class="newsletter-settings">
+        <h2>Newsletter Settings</h2>
+        <div class="settings-info">
+            <p><strong>From Email:</strong> {{ config.get('NEWSLETTER_FROM_EMAIL', 'Not configured') }}</p>
+            <p><strong>From Name:</strong> {{ config.get('NEWSLETTER_FROM_NAME', 'Not configured') }}</p>
+            <p><strong>SendGrid Status:</strong> 
+                <span class="status {{ 'configured' if config.get('SENDGRID_API_KEY') else 'not-configured' }}">
+                    {{ 'Configured' if config.get('SENDGRID_API_KEY') else 'Not Configured' }}
+                </span>
+            </p>
+        </div>
+        
+        <div class="settings-actions">
+            <a href="{{ url_for('newsletter_subscribe') }}" class="btn btn-outline" target="_blank">
+                Preview Subscription Page
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh stats every 30 seconds
+setInterval(function() {
+    fetch('{{ url_for("api_newsletter_stats") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update stats display
+                const stats = data.stats;
+                document.querySelector('.stat-card:nth-child(1) h3').textContent = stats.confirmed_subscriptions;
+                document.querySelector('.stat-card:nth-child(2) h3').textContent = stats.confirmation_rate.toFixed(1) + '%';
+                document.querySelector('.stat-card:nth-child(3) h3').textContent = stats.recent_subscriptions;
+                document.querySelector('.stat-card:nth-child(4) h3').textContent = stats.unsubscribed_count;
+            }
+        })
+        .catch(error => console.error('Error refreshing stats:', error));
+}, 30000);
+</script>
+{% endblock %}

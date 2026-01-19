@@ -136,7 +136,8 @@ class ImageHandler:
         
         # Generate unique filename using UUID and timestamp
         unique_id = str(uuid.uuid4())
-        timestamp = str(int(os.path.getmtime(__file__) if os.path.exists(__file__) else 0))
+        import time
+        timestamp = str(int(time.time()))
         
         # Create hash of original filename for additional uniqueness
         filename_hash = hashlib.md5(original_filename.encode('utf-8')).hexdigest()[:8]

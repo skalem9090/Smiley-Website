@@ -90,15 +90,40 @@
       </div>
 
       <div class="card">
-        <h2>About</h2>
-        <p class="muted">Smileys Blog is a small collection of essays and tips on living a balanced life. Concise, practical, and curated.</p>
-        <p><a href="{{ url_for('explore') }}">See more →</a></p>
+        <h2>Stay Connected</h2>
+        <p class="muted">Join our community and never miss a thoughtful post about living a balanced life.</p>
+        
+        {% if not current_user.is_authenticated %}
+          <!-- Newsletter Subscription Widget for Guests -->
+          <div style="background: var(--hover-bg); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px solid var(--paper-border); margin: 1rem 0;">
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--accent); font-size: 1rem;">📧 Newsletter</h4>
+            <p style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--muted);">Get weekly insights delivered to your inbox</p>
+            <a href="{{ url_for('newsletter_subscribe') }}" class="btn btn-primary" style="width: 100%; justify-content: center;">
+              Subscribe Now
+            </a>
+          </div>
+          
+          <!-- RSS Feed Option -->
+          <div style="text-align: center; margin-top: 1rem;">
+            <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem;">Prefer RSS?</p>
+            <a href="{{ url_for('rss_feed') }}" style="color: var(--accent); text-decoration: none; font-size: 0.9rem;">
+              📡 Subscribe to RSS Feed
+            </a>
+          </div>
+        {% else %}
+          <!-- Developer View -->
+          <p><a class="btn btn-outline" href="{{ url_for('dashboard') }}">📊 Go to Dashboard</a></p>
+        {% endif %}
       </div>
 
       <div class="card">
-        <h2>Get Involved</h2>
-        <p class="muted">Interested in contributing? Sign up and submit posts through the developer dashboard.</p>
-        <p><a class="btn btn-outline" href="{{ url_for('dashboard') }}">Dashboard</a></p>
+        <h2>About This Blog</h2>
+        <p class="muted">Smileys Blog is a curated collection of essays and practical tips on living a balanced life. Each post is concise, well-researched, and designed to provide actionable insights.</p>
+        <div style="margin-top: 1rem;">
+          <a href="{{ url_for('about') }}" style="color: var(--accent); text-decoration: none; font-weight: 500;">
+            Learn more about the author →
+          </a>
+        </div>
       </div>
     </div>
   </section>

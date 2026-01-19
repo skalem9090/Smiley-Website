@@ -1,0 +1,147 @@
+<!-- Individual Comment Display Template -->
+<div class="comment" id="comment-{{ comment.id }}" style="margin-bottom:1.5rem; padding:1rem; background:white; border:1px solid #e9ecef; border-radius:8px; {% if comment.parent_id %}margin-left:2rem; border-left:3px solid #007bff;{% endif %}">
+  <div class="comment-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; padding-bottom:0.5rem; border-bottom:1px solid #f1f3f4;">
+    <div class="comment-author" style="display:flex; align-items:center; gap:0.75rem;">
+      <div class="comment-avatar" style="width:40px; height:40px; background:linear-gradient(135deg, #007bff, #0056b3); border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:0.9rem;">
+        {{ comment.author_name[0]|upper }}
+      </div>
+      <div>
+        <div class="comment-author-name" style="font-weight:600; color:#333; font-size:0.95rem;">
+          {{ comment.author_name }}
+        </div>
+        <div class="comment-date" style="color:#666; font-size:0.8rem;">
+          {% if comment.created_at %}
+            {% set date_parts = comment.created_at.split('T') %}
+            {% if date_parts|length > 1 %}
+              {{ date_parts[0] }} at {{ date_parts[1][:5] }}
+            {% else %}
+              {{ comment.created_at }}
+            {% endif %}
+          {% else %}
+            No date
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div class="comment-admin-actions" style="display:flex; gap:0.5rem;">
+      <button onclick="moderateComment({{ comment.id }}, 'approve')" 
+              class="btn-small" 
+              style="padding:0.25rem 0.5rem; font-size:0.75rem; background:#28a745; color:white; border:none; border-radius:3px; cursor:pointer;">
+        Approve
+      </button>
+      <button onclick="moderateComment({{ comment.id }}, 'reject')" 
+              class="btn-small" 
+              style="padding:0.25rem 0.5rem; font-size:0.75rem; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">
+        Reject
+      </button>
+    </div>
+    {% endif %}
+  </div>
+  
+  <div class="comment-content" style="color:#333; line-height:1.6; font-size:0.95rem; margin-bottom:0.75rem;">
+    {{ comment.content|nl2br }}
+  </div>
+  
+  <!-- Reply button (if threading is enabled) -->
+  {% if not comment.parent_id %}
+  <div class="comment-actions" style="display:flex; gap:1rem;">
+    <button onclick="toggleReplyForm({{ comment.id }})" 
+            class="reply-btn" 
+            style="background:none; border:none; color:#007bff; font-size:0.85rem; cursor:pointer; padding:0; text-decoration:underline;"
+            onmouseover="this.style.color='#0056b3';"
+            onmouseout="this.style.color='#007bff';">
+      Reply
+    </button>
+  </div>
+  
+  <!-- Reply form (hidden by default) -->
+  <div id="reply-form-{{ comment.id }}" class="reply-form" style="display:none; margin-top:1rem; padding:1rem; background:#f8f9fa; border-radius:6px;">
+    <form method="POST" action="{{ url_for('post_view', post_id=post.id) }}">
+      {{ csrf_token() }}
+      <input type="hidden" name="parent_id" value="{{ comment.id }}">
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+        <div>
+          <label style="display:block; margin-bottom:0.5rem; font-weight:500; color:#333;">Name</label>
+          <input type="text" name="author_name" required 
+                 style="width:100%; padding:0.5rem; border:1px solid #ced4da; border-radius:4px; font-size:0.9rem;">
+        </div>
+        <div>
+          <label style="display:block; margin-bottom:0.5rem; font-weight:500; color:#333;">Email</label>
+          <input type="email" name="author_email" required 
+                 style="width:100%; padding:0.5rem; border:1px solid #ced4da; border-radius:4px; font-size:0.9rem;">
+          <div style="color:#666; font-size:0.75rem; margin-top:0.25rem;">Your email will not be published</div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; margin-bottom:0.5rem; font-weight:500; color:#333;">Reply</label>
+        <textarea name="content" required 
+                  style="width:100%; padding:0.5rem; border:1px solid #ced4da; border-radius:4px; font-size:0.9rem; min-height:80px; resize:vertical;"></textarea>
+      </div>
+      
+      <div style="display:flex; gap:0.5rem;">
+        <button type="submit" class="btn" style="background:#007bff; color:white; border:none; padding:0.5rem 1rem; border-radius:4px; font-size:0.9rem; cursor:pointer;">
+          Post Reply
+        </button>
+        <button type="button" onclick="toggleReplyForm({{ comment.id }})" 
+                class="btn" style="background:#6c757d; color:white; border:none; padding:0.5rem 1rem; border-radius:4px; font-size:0.9rem; cursor:pointer;">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  
+  <!-- Nested replies -->
+  {% if comment.replies %}
+    <div class="comment-replies" style="margin-top:1rem;">
+      {% for reply in comment.replies %}
+        {% with comment=reply %}
+          {% include 'comment_display.html' %}
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+function toggleReplyForm(commentId) {
+  const form = document.getElementById('reply-form-' + commentId);
+  if (form.style.display === 'none' || form.style.display === '') {
+    form.style.display = 'block';
+  } else {
+    form.style.display = 'none';
+  }
+}
+
+function moderateComment(commentId, action) {
+  if (!confirm('Are you sure you want to ' + action + ' this comment?')) {
+    return;
+  }
+  
+  fetch('/api/comment/moderate/' + commentId, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+    },
+    body: JSON.stringify({ action: action })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert(data.message);
+      location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('An error occurred while moderating the comment.');
+  });
+}
+</script>

@@ -3,17 +3,77 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Smileys Blog{% endblock %}</title>
+    
+    <!-- SEO Meta Tags -->
+    {% if seo_meta %}
+      <title>{{ seo_meta.title }}</title>
+      <meta name="description" content="{{ seo_meta.description }}">
+      <meta name="keywords" content="{{ seo_meta.keywords }}">
+      <meta name="author" content="{{ seo_meta.author }}">
+      <meta name="robots" content="{{ seo_meta.robots }}">
+      <link rel="canonical" href="{{ seo_meta.canonical_url }}">
+      
+      {% if seo_meta.article_published_time %}
+        <meta name="article:published_time" content="{{ seo_meta.article_published_time }}">
+      {% endif %}
+      {% if seo_meta.article_modified_time %}
+        <meta name="article:modified_time" content="{{ seo_meta.article_modified_time }}">
+      {% endif %}
+      {% if seo_meta.article_section %}
+        <meta name="article:section" content="{{ seo_meta.article_section }}">
+      {% endif %}
+    {% else %}
+      <title>{% block title %}Smileys Blog{% endblock %}</title>
+      <meta name="description" content="Short essays and practical tips about wealth, health & happiness">
+      <meta name="keywords" content="wealth, health, happiness, blog, essays, tips">
+      <meta name="author" content="Smileys Blog">
+      <meta name="robots" content="index, follow">
+    {% endif %}
+    
+    <!-- Open Graph Tags -->
+    {% if og_tags %}
+      {% for property, content in og_tags.items() %}
+        {% if content %}
+          {% if property.startswith('og:') or property.startswith('article:') or property.startswith('profile:') or property.startswith('fb:') %}
+            <meta property="{{ property }}" content="{{ content }}">
+          {% elif property.startswith('twitter:') %}
+            <meta name="{{ property }}" content="{{ content }}">
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <!-- Default Open Graph Tags -->
+      <meta property="og:site_name" content="Smileys Blog">
+      <meta property="og:type" content="website">
+      <meta property="og:title" content="{% block og_title %}Smileys Blog{% endblock %}">
+      <meta property="og:description" content="{% block og_description %}Short essays and practical tips about wealth, health & happiness{% endblock %}">
+      <meta property="og:url" content="{{ request.url }}">
+      <meta property="og:locale" content="en_US">
+      
+      <!-- Twitter Card Tags -->
+      <meta name="twitter:card" content="summary_large_image">
+      <meta name="twitter:site" content="@smileys_blog">
+      <meta name="twitter:creator" content="@smileys_blog">
+    {% endif %}
+    
+    <!-- Structured Data -->
+    {% if structured_data %}
+      <script type="application/ld+json">
+        {{ structured_data | tojson }}
+      </script>
+    {% endif %}
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/png" href="/favicon.ico">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <!-- RSS/Atom Feed Discovery Links -->
     <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/feed.xml">
-    <link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/atom.xml">>
+    <link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/atom.xml">
   </head>
   <body>
     <nav class="main-nav">
@@ -22,18 +82,92 @@
         <a href="{{ url_for('about') }}">About</a>
         <a href="{{ url_for('explore') }}">Explore</a>
         <a href="{{ url_for('tag_list') }}">Tags</a>
+        {% if current_user.is_authenticated and current_user.is_admin %}
+          <!-- Developer-only navigation items -->
+          <a href="{{ url_for('dashboard') }}" style="color: var(--accent); font-weight: 600;">Dashboard</a>
+        {% endif %}
       </div>
       <div class="nav-right">
+        <!-- Search Input -->
+        <div class="nav-search">
+          <form method="GET" action="{{ url_for('search') }}" style="margin: 0;">
+            <input type="text" 
+                   name="q" 
+                   placeholder="Search..." 
+                   class="nav-search-input"
+                   id="nav-search-input"
+                   autocomplete="off">
+            <div id="nav-search-suggestions" class="nav-search-suggestions"></div>
+          </form>
+        </div>
+        
+        <!-- Newsletter Subscription for Guests -->
+        {% if not current_user.is_authenticated %}
+          <a href="{{ url_for('newsletter_subscribe') }}" class="btn btn-outline" style="margin-right: 1rem; font-size: 0.8rem; padding: 0.5rem 1rem;">
+            📧 Subscribe
+          </a>
+        {% endif %}
+        
         <div class="dropdown" tabindex="0" aria-haspopup="true">
-          <button class="dropbtn">Menu ▾</button>
-          <div class="dropdown-content" role="menu">
-            {% if current_user.is_authenticated %}
-              <a role="menuitem" href="{{ url_for('dashboard') }}">Dashboard</a>
-              <a role="menuitem" href="{{ url_for('logout') }}">Logout</a>
-            {% else %}
-              {# intentionally hide developer login from the primary menu to avoid drawing attention #}
-            {% endif %}
-          </div>
+          {% if current_user.is_authenticated and current_user.is_admin %}
+            <!-- Developer Menu -->
+            <button class="dropbtn" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-muted) 100%); color: white; border-color: var(--accent);">
+              👨‍💻 Developer ▾
+            </button>
+            <div class="dropdown-content" role="menu" style="min-width: 200px;">
+              <div style="padding: 0.75rem 1rem; background: var(--hover-bg); border-bottom: 1px solid var(--paper-border); font-weight: 600; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                Content Management
+              </div>
+              <a role="menuitem" href="{{ url_for('dashboard') }}">📊 Dashboard</a>
+              <a role="menuitem" href="{{ url_for('media_library') }}">📷 Media Library</a>
+              <a role="menuitem" href="{{ url_for('author_profile_management') }}">👤 Author Profile</a>
+              
+              <div style="padding: 0.75rem 1rem; background: var(--hover-bg); border-bottom: 1px solid var(--paper-border); font-weight: 600; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.5rem;">
+                Community
+              </div>
+              <a role="menuitem" href="{{ url_for('comment_moderation') }}">💬 Comments</a>
+              <a role="menuitem" href="{{ url_for('newsletter_management') }}">📧 Newsletter</a>
+              
+              <div style="padding: 0.75rem 1rem; background: var(--hover-bg); border-bottom: 1px solid var(--paper-border); font-weight: 600; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.5rem;">
+                Tools & Analytics
+              </div>
+              <a role="menuitem" href="{{ url_for('search') }}">🔍 Search</a>
+              <a role="menuitem" href="{{ url_for('sitemap') }}" target="_blank">🗺️ Sitemap</a>
+              <a role="menuitem" href="{{ url_for('rss_feed') }}" target="_blank">📡 RSS Feed</a>
+              
+              <div style="border-top: 1px solid var(--paper-border); margin-top: 0.5rem; padding-top: 0.5rem;">
+                <a role="menuitem" href="{{ url_for('logout') }}" style="color: var(--pastel-red-foreground); font-weight: 600;">
+                  🚪 Logout
+                </a>
+              </div>
+            </div>
+          {% else %}
+            <!-- Guest Menu -->
+            <button class="dropbtn">
+              👤 Guest ▾
+            </button>
+            <div class="dropdown-content" role="menu">
+              <div style="padding: 0.75rem 1rem; background: var(--hover-bg); border-bottom: 1px solid var(--paper-border); font-weight: 600; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                Explore Content
+              </div>
+              <a role="menuitem" href="{{ url_for('explore') }}">📚 All Posts</a>
+              <a role="menuitem" href="{{ url_for('tag_list') }}">🏷️ Browse Tags</a>
+              <a role="menuitem" href="{{ url_for('search') }}">🔍 Search</a>
+              
+              <div style="padding: 0.75rem 1rem; background: var(--hover-bg); border-bottom: 1px solid var(--paper-border); font-weight: 600; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.5rem;">
+                Stay Connected
+              </div>
+              <a role="menuitem" href="{{ url_for('newsletter_subscribe') }}">📧 Subscribe to Newsletter</a>
+              <a role="menuitem" href="{{ url_for('rss_feed') }}" target="_blank">📡 RSS Feed</a>
+              <a role="menuitem" href="{{ url_for('atom_feed') }}" target="_blank">📡 Atom Feed</a>
+              
+              <div style="border-top: 1px solid var(--paper-border); margin-top: 0.5rem; padding-top: 0.5rem;">
+                <a role="menuitem" href="{{ url_for('login') }}" style="color: var(--muted); font-size: 0.8rem;">
+                  🔐 Developer Login
+                </a>
+              </div>
+            </div>
+          {% endif %}
         </div>
       </div>
     </nav>
@@ -51,15 +185,56 @@
     </main>
     <footer class="site-footer">
       <div class="container footer-inner">
-        <div class="footer-info muted">© 2026 Smileys Blog · Short essays and practical tips about wealth, health &amp; happiness</div>
-        <div class="footer-actions">
-          <a class="dev-link" href="{{ url_for('login') }}" title="Developer login" aria-label="Developer login">·</a>
+        <div class="footer-info muted">
+          © 2026 Smileys Blog · Short essays and practical tips about wealth, health &amp; happiness
+          {% if not current_user.is_authenticated %}
+            <br><small style="margin-top: 0.5rem; display: block;">
+              <a href="{{ url_for('newsletter_subscribe') }}" style="color: var(--accent); text-decoration: none;">
+                📧 Subscribe to our newsletter
+              </a> · 
+              <a href="{{ url_for('rss_feed') }}" style="color: var(--muted); text-decoration: none;">
+                📡 RSS Feed
+              </a>
+            </small>
+          {% endif %}
         </div>
+        {% if current_user.is_authenticated and current_user.is_admin %}
+          <div class="footer-actions">
+            <span style="color: var(--accent); font-size: 0.8rem; font-weight: 500;">
+              👨‍💻 Developer Mode
+            </span>
+          </div>
+        {% endif %}
       </div>
     </footer>
+    
+    <!-- Developer Mode Indicator -->
+    {% if current_user.is_authenticated and current_user.is_admin %}
+      <div class="developer-indicator" title="Developer mode active">
+        👨‍💻 DEV
+      </div>
+    {% endif %}
     <script>
-    // Make menu dropdown toggleable by click (helps when editor steals focus)
+    // Enhanced navigation scroll effect
     (function(){
+      const nav = document.querySelector('.main-nav');
+      let lastScrollY = window.scrollY;
+      
+      function updateNavOnScroll() {
+        const currentScrollY = window.scrollY;
+        
+        if (currentScrollY > 50) {
+          nav.classList.add('scrolled');
+        } else {
+          nav.classList.remove('scrolled');
+        }
+        
+        lastScrollY = currentScrollY;
+      }
+      
+      window.addEventListener('scroll', updateNavOnScroll, { passive: true });
+      
+      // Make menu dropdown toggleable by click (helps when editor steals focus)
       document.addEventListener('click', function(e){
         var btn = e.target.closest('.dropbtn');
         // close other open dropdowns if clicking a button
@@ -80,8 +255,92 @@
         }
       });
       // close on Escape
-      document.addEventListener('keydown', function(e){ if(e.key === 'Escape') document.querySelectorAll('.dropdown.open').forEach(function(d){ d.classList.remove('open'); var b=d.querySelector('.dropbtn'); if(b) b.setAttribute('aria-expanded','false'); }); });
+      document.addEventListener('keydown', function(e){ 
+        if(e.key === 'Escape') {
+          document.querySelectorAll('.dropdown.open').forEach(function(d){ 
+            d.classList.remove('open'); 
+            var b=d.querySelector('.dropbtn'); 
+            if(b) b.setAttribute('aria-expanded','false'); 
+          }); 
+        }
+      });
     })();
+
+    // Navigation search functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const navSearchInput = document.getElementById('nav-search-input');
+        const navSuggestionsContainer = document.getElementById('nav-search-suggestions');
+        let navDebounceTimer;
+        
+        if (navSearchInput && navSuggestionsContainer) {
+            navSearchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                
+                // Clear previous timer
+                clearTimeout(navDebounceTimer);
+                
+                if (query.length < 2) {
+                    navSuggestionsContainer.innerHTML = '';
+                    navSuggestionsContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Debounce the API call
+                navDebounceTimer = setTimeout(() => {
+                    fetch(`{{ url_for('api_search_autocomplete') }}?q=${encodeURIComponent(query)}&limit=3`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.suggestions.length > 0) {
+                                displayNavSuggestions(data.suggestions);
+                            } else {
+                                navSuggestionsContainer.innerHTML = '';
+                                navSuggestionsContainer.style.display = 'none';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching nav suggestions:', error);
+                            navSuggestionsContainer.innerHTML = '';
+                            navSuggestionsContainer.style.display = 'none';
+                        });
+                }, 300);
+            });
+            
+            function displayNavSuggestions(suggestions) {
+                const html = suggestions.map(suggestion => 
+                    `<div class="suggestion-item" data-query="${suggestion}">${suggestion}</div>`
+                ).join('');
+                
+                navSuggestionsContainer.innerHTML = html;
+                navSuggestionsContainer.style.display = 'block';
+                
+                // Add click handlers to suggestions
+                navSuggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        navSearchInput.value = this.dataset.query;
+                        navSuggestionsContainer.innerHTML = '';
+                        navSuggestionsContainer.style.display = 'none';
+                        navSearchInput.form.submit();
+                    });
+                });
+            }
+            
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!navSearchInput.contains(event.target) && !navSuggestionsContainer.contains(event.target)) {
+                    navSuggestionsContainer.innerHTML = '';
+                    navSuggestionsContainer.style.display = 'none';
+                }
+            });
+            
+            // Handle Enter key
+            navSearchInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    navSuggestionsContainer.innerHTML = '';
+                    navSuggestionsContainer.style.display = 'none';
+                }
+            });
+        }
+    });
     </script>
 {% block scripts %}{% endblock %}
   </body>

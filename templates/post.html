@@ -33,12 +33,12 @@
         <div class="post-tags" style="margin-bottom:1rem;">
           <span style="color:#666; font-size:0.9em; margin-right:0.5rem;">Tags:</span>
           {% for tag_rel in post.tag_relationships %}
-            <a href="{{ url_for('tag_posts', slug=tag_rel.tag.slug) }}" 
+            <a href="{{ url_for('tag_posts', slug=tag_rel.slug) }}" 
                class="tag-link" 
                style="display:inline-block; margin:0.2rem 0.3rem 0.2rem 0; padding:0.2rem 0.6rem; background:#e9ecef; border-radius:12px; text-decoration:none; color:#495057; font-size:0.8em; transition:background 0.2s;"
                onmouseover="this.style.background='#dee2e6';"
                onmouseout="this.style.background='#e9ecef';">
-              {{ tag_rel.tag.name }}
+              {{ tag_rel.name }}
             </a>
           {% endfor %}
         </div>
@@ -95,21 +95,123 @@
       </div>
     </div>
     
+    <!-- Comments Section -->
+    <div class="comments-section" style="margin-top:2rem;">
+      <h3 style="margin:0 0 1.5rem 0; font-size:1.3rem; color:#333; border-bottom:2px solid #007bff; padding-bottom:0.5rem;">
+        Comments ({{ comments|length }})
+      </h3>
+      
+      <!-- Comment Form -->
+      <div class="comment-form-section" style="margin-bottom:2rem; padding:1.5rem; background:#f8f9fa; border-radius:8px;">
+        <h4 style="margin:0 0 1rem 0; font-size:1.1rem; color:#333;">Leave a Comment</h4>
+        
+        <form method="POST" action="{{ url_for('post_view', post_id=post.id) }}">
+          {{ comment_form.hidden_tag() }}
+          
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div>
+              {{ comment_form.author_name.label(style="display:block; margin-bottom:0.5rem; font-weight:500; color:#333;") }}
+              {{ comment_form.author_name(style="width:100%; padding:0.75rem; border:1px solid #ced4da; border-radius:4px; font-size:0.95rem;") }}
+              {% if comment_form.author_name.errors %}
+                <div style="color:#dc3545; font-size:0.85rem; margin-top:0.25rem;">
+                  {% for error in comment_form.author_name.errors %}{{ error }}{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+            
+            <div>
+              {{ comment_form.author_email.label(style="display:block; margin-bottom:0.5rem; font-weight:500; color:#333;") }}
+              {{ comment_form.author_email(style="width:100%; padding:0.75rem; border:1px solid #ced4da; border-radius:4px; font-size:0.95rem;") }}
+              {% if comment_form.author_email.errors %}
+                <div style="color:#dc3545; font-size:0.85rem; margin-top:0.25rem;">
+                  {% for error in comment_form.author_email.errors %}{{ error }}{% endfor %}
+                </div>
+              {% endif %}
+              <div style="color:#666; font-size:0.8rem; margin-top:0.25rem;">Your email will not be published</div>
+            </div>
+          </div>
+          
+          <div style="margin-bottom:1rem;">
+            {{ comment_form.content.label(style="display:block; margin-bottom:0.5rem; font-weight:500; color:#333;") }}
+            {{ comment_form.content(style="width:100%; padding:0.75rem; border:1px solid #ced4da; border-radius:4px; font-size:0.95rem; min-height:120px; resize:vertical;") }}
+            {% if comment_form.content.errors %}
+              <div style="color:#dc3545; font-size:0.85rem; margin-top:0.25rem;">
+                {% for error in comment_form.content.errors %}{{ error }}{% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          
+          <button type="submit" class="btn" style="background:#007bff; color:white; border:none; padding:0.75rem 1.5rem; border-radius:4px; font-size:0.95rem; cursor:pointer; transition:background 0.2s;"
+                  onmouseover="this.style.background='#0056b3';"
+                  onmouseout="this.style.background='#007bff';">
+            Post Comment
+          </button>
+        </form>
+      </div>
+      
+      <!-- Comments Display -->
+      {% if comments %}
+        <div class="comments-list">
+          {% for comment in comments %}
+            {% include 'comment_display.html' %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div style="text-align:center; padding:2rem; color:#666; font-style:italic;">
+          No comments yet. Be the first to share your thoughts!
+        </div>
+      {% endif %}
+    </div>
+    
+    <!-- Guest vs Developer Actions -->
     {% if current_user.is_authenticated and current_user.is_admin %}
-      <footer style="margin-top:2rem; padding-top:1rem; border-top:1px solid #dee2e6;">
-        <div class="admin-actions">
-          <a class="btn" href="{{ url_for('edit_post', post_id=post.id) }}">Edit Post</a>
-          <form method="post" action="{{ url_for('delete_post', post_id=post.id) }}" style="display:inline; margin-left:0.5rem;" onsubmit="return confirm('Delete this post?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn danger" type="submit">Delete</button>
-          </form>
+      <!-- Developer Admin Actions -->
+      <footer style="margin-top:2rem; padding:1.5rem; border-top:1px solid var(--paper-border); background: var(--hover-bg); border-radius: 0 0 var(--radius-lg) var(--radius-lg);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div style="color: var(--muted); font-size: 0.8rem;">
+            👨‍💻 Developer Actions
+          </div>
+          <div class="admin-actions" style="display: flex; gap: 0.5rem;">
+            <a class="btn btn-outline" href="{{ url_for('edit_post', post_id=post.id) }}">✏️ Edit Post</a>
+            <form method="post" action="{{ url_for('delete_post', post_id=post.id) }}" style="display:inline;" onsubmit="return confirm('Delete this post? This action cannot be undone.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn danger" type="submit">🗑️ Delete</button>
+            </form>
+          </div>
+        </div>
+      </footer>
+    {% else %}
+      <!-- Guest Engagement Section -->
+      <footer style="margin-top:2rem; padding:2rem; border-top:1px solid var(--paper-border); background: var(--hover-bg); border-radius: 0 0 var(--radius-lg) var(--radius-lg);">
+        <div style="text-align: center;">
+          <h3 style="color: var(--paper-text); margin-bottom: 1rem; font-size: 1.2rem;">Enjoyed this post?</h3>
+          <p style="color: var(--muted); margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto;">
+            Subscribe to our newsletter to get more thoughtful content about wealth, health, and happiness delivered to your inbox.
+          </p>
+          <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="{{ url_for('newsletter_subscribe') }}" class="btn btn-primary">
+              📧 Subscribe to Newsletter
+            </a>
+            <a href="{{ url_for('explore') }}" class="btn btn-outline">
+              📚 Read More Posts
+            </a>
+          </div>
+          <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--paper-border);">
+            <p style="color: var(--muted); font-size: 0.8rem; margin-bottom: 0.5rem;">
+              Stay connected with RSS
+            </p>
+            <a href="{{ url_for('rss_feed') }}" style="color: var(--accent); text-decoration: none; font-size: 0.9rem;">
+              📡 RSS Feed
+            </a>
+          </div>
         </div>
       </footer>
     {% endif %}
   </article>
   
-  <div style="margin-top:1rem; text-align:center;">
-    <a class="btn" href="{{ url_for('explore') }}">← Back to Explore</a>
+  <div style="margin-top:2rem; text-align:center;">
+    <a class="btn btn-outline" href="{{ url_for('explore') }}">← Back to Explore</a>
+  </div>
   </div>
 </section>
 

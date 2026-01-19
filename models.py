@@ -25,7 +25,7 @@ class SearchQuery(db.Model):
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
     author_name = db.Column(db.String(100), nullable=False)
     author_email = db.Column(db.String(120), nullable=False)
     content = db.Column(db.Text, nullable=False)
@@ -42,7 +42,7 @@ class Comment(db.Model):
     replies = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]))
     
     # Relationships
-    post = db.relationship('Post', backref='comments')
+    post = db.relationship('Post', backref=db.backref('comments', cascade='all, delete-orphan'))
     moderator = db.relationship('User', backref='moderated_comments')
 
     def __repr__(self):

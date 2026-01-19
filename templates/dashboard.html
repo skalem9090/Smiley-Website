@@ -5,13 +5,91 @@
 {% block content %}
 <section class="container">
   <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-      <h2>Create Post</h2>
-      <div style="display:flex; gap:0.5rem;">
-        <a class="btn" href="{{ url_for('author_profile_management') }}">👤 Author Profile</a>
-        <a class="btn" href="{{ url_for('media_library') }}">📷 Media Library</a>
+    <!-- Dashboard Navigation -->
+    <nav class="dashboard-nav" style="margin-bottom: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h1 style="margin: 0; color: #9b5e2b;">Dashboard</h1>
+        <div class="dashboard-stats" style="display: flex; gap: 1rem; font-size: 0.9rem; color: #666;">
+          <span id="posts-count">Posts: {{ posts.published|length + posts.draft|length + posts.scheduled|length }}</span>
+          <span id="comments-count">Comments: <span class="loading">...</span></span>
+          <span id="subscribers-count">Subscribers: <span class="loading">...</span></span>
+        </div>
+      </div>
+      
+      <div class="nav-sections" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <!-- Content Management -->
+        <div class="nav-section">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">Content</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <a class="btn btn-sm" href="#create-post" onclick="scrollToCreatePost()">✏️ Create Post</a>
+            <a class="btn btn-sm" href="{{ url_for('media_library') }}">📷 Media Library</a>
+            <a class="btn btn-sm" href="{{ url_for('explore') }}">🔍 Browse Posts</a>
+          </div>
+        </div>
+        
+        <!-- Author & Profile -->
+        <div class="nav-section">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">Profile</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <a class="btn btn-sm" href="{{ url_for('author_profile_management') }}">👤 Author Profile</a>
+            <a class="btn btn-sm" href="{{ url_for('about') }}" target="_blank">👁️ View About Page</a>
+          </div>
+        </div>
+        
+        <!-- Community -->
+        <div class="nav-section">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">Community</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <a class="btn btn-sm" href="{{ url_for('comment_moderation') }}">💬 Comments <span id="pending-comments-badge" class="badge">...</span></a>
+            <a class="btn btn-sm" href="{{ url_for('newsletter_management') }}">📧 Newsletter</a>
+          </div>
+        </div>
+        
+        <!-- Analytics & Tools -->
+        <div class="nav-section">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">Analytics</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <a class="btn btn-sm" href="#analytics" onclick="showAnalytics()">📊 Analytics</a>
+            <a class="btn btn-sm" href="#system-health" onclick="showSystemHealth()">🔧 System Health</a>
+            <a class="btn btn-sm" href="{{ url_for('search') }}">🔍 Search</a>
+          </div>
+        </div>
+        
+        <!-- SEO & Feeds -->
+        <div class="nav-section">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">SEO & Feeds</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <a class="btn btn-sm" href="{{ url_for('sitemap') }}" target="_blank">🗺️ Sitemap</a>
+            <a class="btn btn-sm" href="{{ url_for('rss_feed') }}" target="_blank">📡 RSS Feed</a>
+            <a class="btn btn-sm" href="{{ url_for('atom_feed') }}" target="_blank">📡 Atom Feed</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Analytics Dashboard (Hidden by default) -->
+    <div id="analytics-dashboard" class="dashboard-section" style="display: none; margin-bottom: 2rem;">
+      <div class="card">
+        <h3>Analytics Overview</h3>
+        <div id="analytics-content">
+          <div class="loading-spinner">Loading analytics...</div>
+        </div>
       </div>
     </div>
+
+    <!-- System Health Dashboard (Hidden by default) -->
+    <div id="system-health-dashboard" class="dashboard-section" style="display: none; margin-bottom: 2rem;">
+      <div class="card">
+        <h3>System Health</h3>
+        <div id="system-health-content">
+          <div class="loading-spinner">Loading system health...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Post Section -->
+    <div id="create-post-section" class="card">
+      <h2>Create Post</h2>
     <form method="post" enctype="multipart/form-data">
       {{ form.hidden_tag() }}
       <div class="form-row">
@@ -78,7 +156,7 @@
     <h3>Existing Posts</h3>
     {% if posts %}
       <form id="bulk-action-form" method="post" action="{{ url_for('bulk_action') }}">
-        {{ csrf_token() }}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="bulk-actions" style="margin-bottom:1rem; padding:0.8rem; background:#f8f9fa; border-radius:4px;">
           <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
             <label style="font-weight:bold;">
@@ -151,6 +229,509 @@
     var scheduledTimeField = document.getElementById('scheduled-time-field');
     var submitBtn = document.getElementById('submit-btn');
     
+    // Load dashboard statistics
+    function loadDashboardStats() {
+      // Load comment stats
+      fetch('/api/comment/stats')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('comments-count').textContent = `Comments: ${data.stats.total_comments}`;
+            const pendingBadge = document.getElementById('pending-comments-badge');
+            if (data.stats.pending_comments > 0) {
+              pendingBadge.textContent = data.stats.pending_comments;
+              pendingBadge.style.display = 'inline';
+              pendingBadge.className = 'badge badge-warning';
+            } else {
+              pendingBadge.style.display = 'none';
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error loading comment stats:', error);
+          document.getElementById('comments-count').textContent = 'Comments: Error';
+        });
+      
+      // Load newsletter stats
+      fetch('/api/newsletter/stats')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('subscribers-count').textContent = `Subscribers: ${data.stats.confirmed_subscriptions}`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading newsletter stats:', error);
+          document.getElementById('subscribers-count').textContent = 'Subscribers: Error';
+        });
+    }
+    
+    // Show analytics dashboard
+    window.showAnalytics = function() {
+      const analyticsDiv = document.getElementById('analytics-dashboard');
+      const systemHealthDiv = document.getElementById('system-health-dashboard');
+      
+      // Hide system health if visible
+      systemHealthDiv.style.display = 'none';
+      
+      // Toggle analytics
+      if (analyticsDiv.style.display === 'none') {
+        analyticsDiv.style.display = 'block';
+        loadAnalytics();
+      } else {
+        analyticsDiv.style.display = 'none';
+      }
+    };
+    
+    // Show system health dashboard
+    window.showSystemHealth = function() {
+      const analyticsDiv = document.getElementById('analytics-dashboard');
+      const systemHealthDiv = document.getElementById('system-health-dashboard');
+      
+      // Hide analytics if visible
+      analyticsDiv.style.display = 'none';
+      
+      // Toggle system health
+      if (systemHealthDiv.style.display === 'none') {
+        systemHealthDiv.style.display = 'block';
+        loadSystemHealth();
+      } else {
+        systemHealthDiv.style.display = 'none';
+      }
+    };
+    
+    // Scroll to create post section
+    window.scrollToCreatePost = function() {
+      document.getElementById('create-post-section').scrollIntoView({ behavior: 'smooth' });
+    };
+    
+    // Load analytics data
+    function loadAnalytics() {
+      const content = document.getElementById('analytics-content');
+      content.innerHTML = '<div class="loading-spinner">Loading analytics...</div>';
+      
+      fetch('/api/analytics/comprehensive?days=30')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.analytics) {
+            const analytics = data.analytics;
+            displayComprehensiveAnalytics(analytics);
+          } else {
+            content.innerHTML = '<div class="error">Error loading analytics data</div>';
+          }
+        })
+        .catch(error => {
+          console.error('Error loading analytics:', error);
+          content.innerHTML = '<div class="error">Error loading analytics data</div>';
+        });
+    }
+    
+    function displayComprehensiveAnalytics(analytics) {
+      const content = document.getElementById('analytics-content');
+      
+      let analyticsHTML = `
+        <div class="analytics-header" style="margin-bottom: 2rem; padding: 1rem; background: var(--card); border-radius: 6px; border: 1px solid var(--paper-border);">
+          <h4 style="margin: 0 0 0.5rem 0; color: var(--accent);">Analytics Overview (${analytics.period.days} days)</h4>
+          <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">
+            Period: ${new Date(analytics.period.start_date).toLocaleDateString()} - ${new Date(analytics.period.end_date).toLocaleDateString()}
+          </p>
+        </div>
+        
+        <div class="analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1rem;">
+      `;
+      
+      // Content Analytics
+      if (analytics.content) {
+        const content = analytics.content;
+        analyticsHTML += `
+          <div class="analytics-card" style="background: var(--card); padding: 1rem; border-radius: 6px; border: 1px solid var(--paper-border);">
+            <h4 style="margin: 0 0 1rem 0; color: var(--accent);">Content Performance</h4>
+            <div class="stat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${content.posts_published}</strong>
+                <small style="color: var(--muted);">Published</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${content.total_published}</strong>
+                <small style="color: var(--muted);">Total Posts</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${content.publishing_rate}</strong>
+                <small style="color: var(--muted);">Posts/Day</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${Math.round(content.avg_content_length)}</strong>
+                <small style="color: var(--muted);">Avg Length</small>
+              </div>
+            </div>
+            ${content.category_breakdown && content.category_breakdown.length > 0 ? `
+              <div style="margin-top: 1rem;">
+                <strong style="color: var(--accent);">Categories:</strong>
+                <div style="margin-top: 0.5rem;">
+                  ${content.category_breakdown.map(cat => 
+                    `<span style="display: inline-block; margin: 0.2rem; padding: 0.2rem 0.5rem; background: var(--bg); border-radius: 12px; font-size: 0.8rem;">
+                      ${cat.category}: ${cat.count}
+                    </span>`
+                  ).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+      
+      // Engagement Analytics
+      if (analytics.engagement) {
+        const engagement = analytics.engagement;
+        analyticsHTML += `
+          <div class="analytics-card" style="background: var(--card); padding: 1rem; border-radius: 6px; border: 1px solid var(--paper-border);">
+            <h4 style="margin: 0 0 1rem 0; color: var(--accent);">User Engagement</h4>
+            <div class="stat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${engagement.comments_approved}</strong>
+                <small style="color: var(--muted);">Comments</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${engagement.unique_commenters}</strong>
+                <small style="color: var(--muted);">Commenters</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${engagement.approval_rate}%</strong>
+                <small style="color: var(--muted);">Approval Rate</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${engagement.avg_comments_per_post}</strong>
+                <small style="color: var(--muted);">Avg/Post</small>
+              </div>
+            </div>
+            ${engagement.top_commenters && engagement.top_commenters.length > 0 ? `
+              <div style="margin-top: 1rem;">
+                <strong style="color: var(--accent);">Top Commenters:</strong>
+                <div style="margin-top: 0.5rem; max-height: 120px; overflow-y: auto;">
+                  ${engagement.top_commenters.slice(0, 5).map(commenter => 
+                    `<div style="display: flex; justify-content: space-between; padding: 0.2rem 0; border-bottom: 1px solid var(--paper-border);">
+                      <span style="font-size: 0.85rem;">${commenter.name}</span>
+                      <span class="badge" style="font-size: 0.7rem;">${commenter.comment_count}</span>
+                    </div>`
+                  ).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+      
+      // Newsletter Analytics
+      if (analytics.newsletter) {
+        const newsletter = analytics.newsletter;
+        analyticsHTML += `
+          <div class="analytics-card" style="background: var(--card); padding: 1rem; border-radius: 6px; border: 1px solid var(--paper-border);">
+            <h4 style="margin: 0 0 1rem 0; color: var(--accent);">Newsletter Growth</h4>
+            <div class="stat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${newsletter.total_active}</strong>
+                <small style="color: var(--muted);">Active Subs</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${newsletter.new_subscriptions}</strong>
+                <small style="color: var(--muted);">New Subs</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${newsletter.confirmation_rate}%</strong>
+                <small style="color: var(--muted);">Confirm Rate</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${newsletter.growth_rate}%</strong>
+                <small style="color: var(--muted);">Growth Rate</small>
+              </div>
+            </div>
+            ${newsletter.frequency_breakdown && newsletter.frequency_breakdown.length > 0 ? `
+              <div style="margin-top: 1rem;">
+                <strong style="color: var(--accent);">Frequency Breakdown:</strong>
+                <div style="margin-top: 0.5rem;">
+                  ${newsletter.frequency_breakdown.map(freq => 
+                    `<span style="display: inline-block; margin: 0.2rem; padding: 0.2rem 0.5rem; background: var(--bg); border-radius: 12px; font-size: 0.8rem;">
+                      ${freq.frequency}: ${freq.count}
+                    </span>`
+                  ).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+      
+      // Search Analytics
+      if (analytics.search) {
+        const search = analytics.search;
+        analyticsHTML += `
+          <div class="analytics-card" style="background: var(--card); padding: 1rem; border-radius: 6px; border: 1px solid var(--paper-border);">
+            <h4 style="margin: 0 0 1rem 0; color: var(--accent);">Search Activity</h4>
+            <div class="stat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${search.total_searches}</strong>
+                <small style="color: var(--muted);">Total Searches</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${search.unique_queries}</strong>
+                <small style="color: var(--muted);">Unique Queries</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${search.success_rate}%</strong>
+                <small style="color: var(--muted);">Success Rate</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${search.searches_per_day}</strong>
+                <small style="color: var(--muted);">Per Day</small>
+              </div>
+            </div>
+            ${search.popular_searches && search.popular_searches.length > 0 ? `
+              <div style="margin-top: 1rem;">
+                <strong style="color: var(--accent);">Popular Searches:</strong>
+                <div style="margin-top: 0.5rem; max-height: 120px; overflow-y: auto;">
+                  ${search.popular_searches.slice(0, 5).map(query => 
+                    `<div style="display: flex; justify-content: space-between; padding: 0.2rem 0; border-bottom: 1px solid var(--paper-border);">
+                      <span style="font-size: 0.85rem;">${query.query}</span>
+                      <span class="badge" style="font-size: 0.7rem;">${query.search_count}</span>
+                    </div>`
+                  ).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+      
+      // Growth Metrics
+      if (analytics.growth) {
+        const growth = analytics.growth;
+        analyticsHTML += `
+          <div class="analytics-card" style="background: var(--card); padding: 1rem; border-radius: 6px; border: 1px solid var(--paper-border);">
+            <h4 style="margin: 0 0 1rem 0; color: var(--accent);">Growth Trends</h4>
+            <div style="font-size: 0.85rem;">
+        `;
+        
+        Object.keys(growth).forEach(period => {
+          if (growth[period] && typeof growth[period] === 'object') {
+            const data = growth[period];
+            analyticsHTML += `
+              <div style="margin-bottom: 1rem; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="color: var(--accent);">${period.replace('_', ' ').toUpperCase()}:</strong>
+                <div style="margin-top: 0.3rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem;">
+                  <div>Posts: ${data.posts} (${data.posts_per_day}/day)</div>
+                  <div>Comments: ${data.comments} (${data.comments_per_day}/day)</div>
+                  <div>Subscribers: ${data.newsletter_subscribers} (${data.subscribers_per_day}/day)</div>
+                  <div>Searches: ${data.searches} (${data.searches_per_day}/day)</div>
+                </div>
+              </div>
+            `;
+          }
+        });
+        
+        analyticsHTML += `
+            </div>
+          </div>
+        `;
+      }
+      
+      // Performance Metrics
+      if (analytics.performance) {
+        const performance = analytics.performance;
+        analyticsHTML += `
+          <div class="analytics-card" style="background: var(--card); padding: 1rem; border-radius: 6px; border: 1px solid var(--paper-border);">
+            <h4 style="margin: 0 0 1rem 0; color: var(--accent);">System Performance</h4>
+            <div class="stat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${performance.publishing_efficiency}%</strong>
+                <small style="color: var(--muted);">Publish Efficiency</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${performance.search_success_rate}%</strong>
+                <small style="color: var(--muted);">Search Success</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${performance.content_creation_velocity}</strong>
+                <small style="color: var(--muted);">Content Velocity</small>
+              </div>
+              <div style="text-align: center; padding: 0.5rem; background: var(--bg); border-radius: 4px;">
+                <strong style="display: block; font-size: 1.2rem; color: var(--accent);">${performance.comment_moderation_efficiency}%</strong>
+                <small style="color: var(--muted);">Moderation Eff.</small>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      analyticsHTML += '</div>';
+      
+      // Add export button
+      analyticsHTML += `
+        <div style="margin-top: 2rem; text-align: center;">
+          <a href="/api/analytics/export?days=30&format=json" class="btn btn-sm" download="analytics_report.json">
+            📊 Export Analytics Report
+          </a>
+        </div>
+      `;
+      
+      content.innerHTML = analyticsHTML;
+    }
+    
+    // Load system health data
+    function loadSystemHealth() {
+      const content = document.getElementById('system-health-content');
+      content.innerHTML = '<div class="loading-spinner">Loading system health...</div>';
+      
+      fetch('/api/system/health')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const health = data.health;
+            const components = health.components;
+            
+            let healthHTML = `
+              <div class="health-overview" style="margin-bottom: 2rem; padding: 1rem; background: ${getStatusColor(health.overall_status)}; border-radius: 6px;">
+                <h4 style="margin: 0 0 0.5rem 0;">Overall Status: ${health.overall_status.toUpperCase()}</h4>
+                <p style="margin: 0; font-size: 0.9rem;">
+                  Last checked: ${new Date(health.check_timestamp).toLocaleString()}<br>
+                  Check duration: ${health.check_duration}s
+                </p>
+              </div>
+              
+              <div class="health-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+            `;
+            
+            // Database Health
+            if (components.database) {
+              const db = components.database;
+              healthHTML += `
+                <div class="health-card" style="background: ${getStatusColor(db.status)}; padding: 1rem; border-radius: 6px;">
+                  <h4 style="margin: 0 0 1rem 0; color: #333;">Database</h4>
+                  <div class="status-indicator">${getStatusIcon(db.status)} ${db.message}</div>
+                  <div style="margin-top: 1rem; font-size: 0.85rem;">
+                    <div>Query Time: ${db.details.query_time}s</div>
+                    <div>Posts: ${db.details.post_count}</div>
+                    <div>Comments: ${db.details.comment_count}</div>
+                    <div>Subscriptions: ${db.details.subscription_count}</div>
+                  </div>
+                </div>
+              `;
+            }
+            
+            // Search Index Health
+            if (components.search_index) {
+              const search = components.search_index;
+              healthHTML += `
+                <div class="health-card" style="background: ${getStatusColor(search.status)}; padding: 1rem; border-radius: 6px;">
+                  <h4 style="margin: 0 0 1rem 0; color: #333;">Search Index</h4>
+                  <div class="status-indicator">${getStatusIcon(search.status)} ${search.message}</div>
+                  <div style="margin-top: 1rem; font-size: 0.85rem;">
+                    <div>Coverage: ${search.details.coverage_percentage}%</div>
+                    <div>Indexed: ${search.details.indexed_count}/${search.details.published_count}</div>
+                    ${search.details.test_query_time ? `<div>Query Time: ${search.details.test_query_time}s</div>` : ''}
+                  </div>
+                </div>
+              `;
+            }
+            
+            // Email Service Health
+            if (components.email_service) {
+              const email = components.email_service;
+              healthHTML += `
+                <div class="health-card" style="background: ${getStatusColor(email.status)}; padding: 1rem; border-radius: 6px;">
+                  <h4 style="margin: 0 0 1rem 0; color: #333;">Email Service</h4>
+                  <div class="status-indicator">${getStatusIcon(email.status)} ${email.message}</div>
+                  <div style="margin-top: 1rem; font-size: 0.85rem;">
+                    <div>Configured: ${email.details.configured ? 'Yes' : 'No'}</div>
+                    ${email.details.api_test_time ? `<div>API Response: ${email.details.api_test_time}s</div>` : ''}
+                    ${email.details.active_subscriptions !== undefined ? `<div>Active Subscribers: ${email.details.active_subscriptions}</div>` : ''}
+                  </div>
+                </div>
+              `;
+            }
+            
+            // Feed Generation Health
+            if (components.feed_generation) {
+              const feeds = components.feed_generation;
+              healthHTML += `
+                <div class="health-card" style="background: ${getStatusColor(feeds.status)}; padding: 1rem; border-radius: 6px;">
+                  <h4 style="margin: 0 0 1rem 0; color: #333;">Feed Generation</h4>
+                  <div class="status-indicator">${getStatusIcon(feeds.status)} ${feeds.message}</div>
+                  <div style="margin-top: 1rem; font-size: 0.85rem;">
+                    <div>RSS: ${feeds.details.rss_success ? '✅' : '❌'} (${feeds.details.rss_generation_time}s)</div>
+                    <div>Atom: ${feeds.details.atom_success ? '✅' : '❌'} (${feeds.details.atom_generation_time}s)</div>
+                    <div>Total Time: ${feeds.details.total_time}s</div>
+                  </div>
+                </div>
+              `;
+            }
+            
+            // File System Health
+            if (components.file_system) {
+              const fs = components.file_system;
+              healthHTML += `
+                <div class="health-card" style="background: ${getStatusColor(fs.status)}; padding: 1rem; border-radius: 6px;">
+                  <h4 style="margin: 0 0 1rem 0; color: #333;">File System</h4>
+                  <div class="status-indicator">${getStatusIcon(fs.status)} ${fs.message}</div>
+                  <div style="margin-top: 1rem; font-size: 0.85rem;">
+                    <div>Disk Usage: ${fs.details.disk_usage_percent}%</div>
+                    <div>Free Space: ${fs.details.disk_free_gb}GB</div>
+                    <div>Database: ${fs.details.database_size_mb}MB</div>
+                    <div>Upload Files: ${fs.details.uploaded_files_count}</div>
+                  </div>
+                </div>
+              `;
+            }
+            
+            // Performance Metrics
+            if (components.performance) {
+              const perf = components.performance;
+              healthHTML += `
+                <div class="health-card" style="background: ${getStatusColor(perf.status)}; padding: 1rem; border-radius: 6px;">
+                  <h4 style="margin: 0 0 1rem 0; color: #333;">Performance</h4>
+                  <div class="status-indicator">${getStatusIcon(perf.status)} ${perf.message}</div>
+                  <div style="margin-top: 1rem; font-size: 0.85rem;">
+                    ${perf.details.cpu_percent !== undefined ? `<div>CPU: ${perf.details.cpu_percent}%</div>` : ''}
+                    ${perf.details.memory_percent !== undefined ? `<div>Memory: ${perf.details.memory_percent}%</div>` : ''}
+                    ${perf.details.process_memory_mb !== undefined ? `<div>App Memory: ${perf.details.process_memory_mb}MB</div>` : ''}
+                    ${perf.details.recent_searches !== undefined ? `<div>Recent Searches: ${perf.details.recent_searches}</div>` : ''}
+                  </div>
+                </div>
+              `;
+            }
+            
+            healthHTML += '</div>';
+            content.innerHTML = healthHTML;
+          } else {
+            content.innerHTML = '<div class="error">Error loading system health data</div>';
+          }
+        })
+        .catch(error => {
+          console.error('Error loading system health:', error);
+          content.innerHTML = '<div class="error">Error loading system health data</div>';
+        });
+    }
+    
+    // Helper functions for health status display
+    function getStatusColor(status) {
+      const colors = {
+        'healthy': '#e6f5e9',
+        'warning': '#fff6d6',
+        'critical': '#ffe4e0',
+        'unknown': '#f3f4f6'
+      };
+      return colors[status] || colors.unknown;
+    }
+    
+    function getStatusIcon(status) {
+      const icons = {
+        'healthy': '✅',
+        'warning': '⚠️',
+        'critical': '❌',
+        'unknown': '❓'
+      };
+      return icons[status] || icons.unknown;
+    }
+    
     // Handle status selection changes
     function updateStatusUI() {
       var status = statusSelect.value;
@@ -177,7 +758,13 @@
     // Initialize status UI
     updateStatusUI();
     
-    // Simple toolbar for basic formatting
+    // Load dashboard stats on page load
+    loadDashboardStats();
+    
+    // Refresh stats every 5 minutes
+    setInterval(loadDashboardStats, 300000);
+    
+    // Enhanced toolbar with image functionality
     function createToolbar() {
       var toolbar = document.createElement('div');
       toolbar.className = 'editor-toolbar';
@@ -189,11 +776,13 @@
         <button type="button" onclick="insertLink()" title="Insert Link">🔗</button>
         <button type="button" onclick="formatText('formatBlock', 'h2')" title="Heading">H2</button>
         <button type="button" onclick="formatText('formatBlock', 'h3')" title="Subheading">H3</button>
+        <button type="button" onclick="showImageUploader()" title="Insert Image">📷 Image</button>
+        <button type="button" onclick="showImageGallery()" title="Image Gallery">🖼️ Gallery</button>
       `;
       return toolbar;
     }
     
-    // Make editor contenteditable with basic formatting
+    // Make editor contenteditable with basic formatting and drag-drop
     function initEditor() {
       // Insert toolbar before editor
       var toolbar = createToolbar();
@@ -210,15 +799,32 @@
       editor.style.display = 'none';
       editor.parentNode.insertBefore(editorDiv, editor.nextSibling);
       
+      // Add drag and drop functionality
+      setupDragAndDrop(editorDiv);
+      
       // Update preview and hidden textarea on input
       function updateContent() {
         var content = editorDiv.innerHTML;
+        // Clean up the HTML a bit
+        content = content.replace(/<div><br><\/div>/g, '<p><br></p>');
+        content = content.replace(/<div>/g, '<p>').replace(/<\/div>/g, '</p>');
+        
         editor.value = content;
         preview.innerHTML = content;
       }
       
       editorDiv.addEventListener('input', updateContent);
       editorDiv.addEventListener('paste', function(e) {
+        // Handle image paste
+        var items = e.clipboardData.items;
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            e.preventDefault();
+            var file = items[i].getAsFile();
+            uploadImageToEditor(file);
+            return;
+          }
+        }
         setTimeout(updateContent, 10); // Allow paste to complete
       });
       
@@ -227,6 +833,39 @@
       
       // Focus the editor
       editorDiv.focus();
+      
+      // Make updateContent globally accessible
+      window.updateContent = updateContent;
+    }
+    
+    function setupDragAndDrop(editorDiv) {
+      editorDiv.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        editorDiv.style.backgroundColor = 'rgba(217, 119, 6, 0.1)';
+        editorDiv.style.border = '2px dashed var(--accent)';
+      });
+      
+      editorDiv.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        editorDiv.style.backgroundColor = '';
+        editorDiv.style.border = '';
+      });
+      
+      editorDiv.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        editorDiv.style.backgroundColor = '';
+        editorDiv.style.border = '';
+        
+        var files = e.dataTransfer.files;
+        for (var i = 0; i < files.length; i++) {
+          if (files[i].type.startsWith('image/')) {
+            uploadImageToEditor(files[i]);
+          }
+        }
+      });
     }
     
     // Global formatting functions
@@ -242,6 +881,286 @@
         document.getElementById('editor-content').focus();
       }
     };
+    
+    // Image upload functionality
+    window.showImageUploader = function() {
+      // Create file input
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.style.display = 'none';
+      
+      input.onchange = function(e) {
+        var file = e.target.files[0];
+        if (file) {
+          uploadImageToEditor(file);
+        }
+      };
+      
+      document.body.appendChild(input);
+      input.click();
+      document.body.removeChild(input);
+    };
+    
+    function uploadImageToEditor(file) {
+      // Show upload progress
+      var editorContent = document.getElementById('editor-content');
+      var uploadingDiv = document.createElement('div');
+      uploadingDiv.innerHTML = '<p style="color: #666; font-style: italic;">📤 Uploading image...</p>';
+      
+      // Insert at cursor position
+      var selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        var range = selection.getRangeAt(0);
+        range.insertNode(uploadingDiv);
+        range.collapse(false);
+      } else {
+        editorContent.appendChild(uploadingDiv);
+      }
+      
+      // Create FormData
+      var formData = new FormData();
+      formData.append('image', file);
+      
+      // Get CSRF token
+      var csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
+      
+      fetch('/api/upload-editor-image', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRFToken': csrfToken
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Replace uploading message with actual image
+          var img = document.createElement('img');
+          img.src = data.url;
+          img.alt = data.filename;
+          img.style.maxWidth = '100%';
+          img.style.height = 'auto';
+          img.style.borderRadius = '8px';
+          img.style.margin = '1rem 0';
+          img.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+          img.className = 'editor-image';
+          
+          uploadingDiv.parentNode.replaceChild(img, uploadingDiv);
+          
+          // Update the hidden textarea
+          window.updateContent();
+          
+          // Debug: log the content
+          console.log('Content after image upload:', document.getElementById('editor').value);
+          
+          // Show success message
+          showNotification('Image uploaded successfully!', 'success');
+        } else {
+          uploadingDiv.innerHTML = '<p style="color: #dc3545;">❌ Upload failed: ' + data.error + '</p>';
+          setTimeout(() => {
+            if (uploadingDiv.parentNode) {
+              uploadingDiv.parentNode.removeChild(uploadingDiv);
+            }
+          }, 3000);
+        }
+      })
+      .catch(error => {
+        console.error('Upload error:', error);
+        uploadingDiv.innerHTML = '<p style="color: #dc3545;">❌ Upload failed: Network error</p>';
+        setTimeout(() => {
+          if (uploadingDiv.parentNode) {
+            uploadingDiv.parentNode.removeChild(uploadingDiv);
+          }
+        }, 3000);
+      });
+    }
+    
+    // Image gallery functionality
+    window.showImageGallery = function() {
+      fetch('/api/editor-images')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showImageGalleryModal(data.images);
+          } else {
+            showNotification('Failed to load images: ' + data.error, 'error');
+          }
+        })
+        .catch(error => {
+          console.error('Gallery error:', error);
+          showNotification('Failed to load image gallery', 'error');
+        });
+    };
+    
+    function showImageGalleryModal(images) {
+      // Create modal
+      var modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      `;
+      
+      var modalContent = document.createElement('div');
+      modalContent.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        width: 100%;
+      `;
+      
+      var header = document.createElement('div');
+      header.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 1rem;
+      `;
+      
+      header.innerHTML = `
+        <h3 style="margin: 0; color: #333;">Image Gallery</h3>
+        <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">×</button>
+      `;
+      
+      var gallery = document.createElement('div');
+      gallery.style.cssText = `
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+      `;
+      
+      if (images.length === 0) {
+        gallery.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1 / -1;">No images uploaded yet. Upload some images first!</p>';
+      } else {
+        images.forEach(image => {
+          var imageItem = document.createElement('div');
+          imageItem.style.cssText = `
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+          `;
+          
+          imageItem.innerHTML = `
+            <img src="${image.url}" alt="${image.original_name}" style="width: 100%; height: 120px; object-fit: cover;">
+            <div style="padding: 0.5rem; font-size: 0.8rem; color: #666;">
+              <div style="font-weight: 500; margin-bottom: 0.25rem;">${image.original_name}</div>
+              <div>${(image.file_size / 1024).toFixed(1)} KB</div>
+            </div>
+          `;
+          
+          imageItem.onmouseover = () => {
+            imageItem.style.transform = 'translateY(-2px)';
+            imageItem.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+          };
+          
+          imageItem.onmouseout = () => {
+            imageItem.style.transform = 'translateY(0)';
+            imageItem.style.boxShadow = 'none';
+          };
+          
+          imageItem.onclick = () => {
+            insertImageIntoEditor(image.url, image.original_name);
+            modal.remove();
+          };
+          
+          gallery.appendChild(imageItem);
+        });
+      }
+      
+      modalContent.appendChild(header);
+      modalContent.appendChild(gallery);
+      modal.appendChild(modalContent);
+      modal.className = 'modal';
+      
+      // Close on background click
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      };
+      
+      document.body.appendChild(modal);
+    }
+    
+    function insertImageIntoEditor(url, altText) {
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = altText;
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+      img.style.borderRadius = '8px';
+      img.style.margin = '1rem 0';
+      img.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+      img.className = 'editor-image';
+      
+      var editorContent = document.getElementById('editor-content');
+      var selection = window.getSelection();
+      
+      if (selection.rangeCount > 0) {
+        var range = selection.getRangeAt(0);
+        range.insertNode(img);
+        range.collapse(false);
+      } else {
+        editorContent.appendChild(img);
+      }
+      
+      // Update the hidden textarea
+      window.updateContent();
+      
+      // Debug: log the content
+      console.log('Content after image insertion:', document.getElementById('editor').value);
+      
+      showNotification('Image inserted successfully!', 'success');
+    }
+    
+    function showNotification(message, type) {
+      var notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 2rem;
+        right: 2rem;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 10001;
+        animation: slideInRight 0.3s ease-out;
+      `;
+      
+      if (type === 'success') {
+        notification.style.background = '#28a745';
+      } else if (type === 'error') {
+        notification.style.background = '#dc3545';
+      }
+      
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      }, 3000);
+    }
     
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {

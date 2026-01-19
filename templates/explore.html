@@ -5,25 +5,40 @@
 {% block content %}
 <section class="container">
   <div class="card">
-    <h2>Explore Posts</h2>
-    <form method="get" class="form-actions">
-      <div class="form-row">
-        <input class="form-control" name="q" placeholder="Search posts..." value="{{ q }}">
+    <div style="margin-bottom: 2rem;">
+      <h2 style="color: var(--paper-text); font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;">Explore Posts</h2>
+      <p style="color: var(--muted); font-size: 1rem;">
+        {% if not current_user.is_authenticated %}
+          Discover thoughtful content about wealth, health, and happiness. 
+          <a href="{{ url_for('newsletter_subscribe') }}" style="color: var(--accent); text-decoration: none; font-weight: 500;">
+            Subscribe to our newsletter
+          </a> to never miss a post.
+        {% else %}
+          Manage and discover your blog content
+        {% endif %}
+      </p>
+    </div>
+    
+    <form method="get" class="form-actions" style="background: var(--hover-bg); padding: 1.5rem; border-radius: var(--radius); border: 1px solid var(--paper-border);">
+      <div class="form-row" style="margin-bottom: 0;">
+        <input class="form-control" name="q" placeholder="Search posts..." value="{{ q }}" style="flex: 2;">
         <select class="form-control" name="category">
           <option value="">All Categories</option>
-          <option value="wealth" {% if request.args.get('category') == 'wealth' %}selected{% endif %}>Wealth</option>
-          <option value="health" {% if request.args.get('category') == 'health' %}selected{% endif %}>Health</option>
-          <option value="happiness" {% if request.args.get('category') == 'happiness' %}selected{% endif %}>Happiness</option>
+          <option value="wealth" {% if request.args.get('category') == 'wealth' %}selected{% endif %}>💰 Wealth</option>
+          <option value="health" {% if request.args.get('category') == 'health' %}selected{% endif %}>🏃 Health</option>
+          <option value="happiness" {% if request.args.get('category') == 'happiness' %}selected{% endif %}>😊 Happiness</option>
         </select>
         <input class="form-control" name="tag" placeholder="Tag..." value="{{ request.args.get('tag', '') }}">
-        <button class="btn btn-primary" type="submit">Search</button>
+        <button class="btn btn-primary" type="submit" style="white-space: nowrap;">
+          🔍 Search
+        </button>
       </div>
     </form>
     
     {% if request.args.get('q') or request.args.get('category') or request.args.get('tag') %}
-      <div style="margin-top:0.8rem;">
-        <span style="color:#666; font-size:0.9em;">
-          Showing results for:
+      <div style="margin-top: 1.5rem; padding: 1rem; background: var(--pastel-blue); border-radius: var(--radius-sm); border: 1px solid var(--pastel-blue-border);">
+        <span style="color: var(--pastel-blue-foreground); font-weight: 500;">
+          📊 Showing results for:
           {% if request.args.get('q') %}
             <strong>"{{ request.args.get('q') }}"</strong>
           {% endif %}
@@ -36,26 +51,36 @@
             <strong>#{{ request.args.get('tag') }}</strong>
           {% endif %}
         </span>
-        <a href="{{ url_for('explore') }}" style="margin-left:1rem; font-size:0.9em;">Clear filters</a>
+        <a href="{{ url_for('explore') }}" style="margin-left: 1rem; color: var(--pastel-blue-foreground); text-decoration: none; font-weight: 500;">
+          ✕ Clear filters
+        </a>
       </div>
     {% endif %}
   </div>
 
-  <div style="margin-top:1rem">
+  <div style="margin-top: 2rem">
     {% if posts %}
       <div class="post-list">
       {% for p in posts %}
         <article class="post-card">
-          <div class="title"><a href="{{ url_for('post_view', post_id=p.id) }}">{{ p.title }}</a></div>
-          <div class="meta">
-            {% if p.published_at %}
-              {{ p.published_at.strftime('%B %d, %Y') }}
-            {% else %}
-              {{ p.created_at.strftime('%B %d, %Y') }}
-            {% endif %}
-            {% if p.category %} · {{ p.category|title }}{% endif %}
+          <div class="title">
+            <a href="{{ url_for('post_view', post_id=p.id) }}">{{ p.title }}</a>
           </div>
-          <div class="excerpt muted">
+          <div class="meta">
+            <span style="color: var(--accent); font-weight: 500;">
+              {% if p.published_at %}
+                📅 {{ p.published_at.strftime('%B %d, %Y') }}
+              {% else %}
+                📅 {{ p.created_at.strftime('%B %d, %Y') }}
+              {% endif %}
+            </span>
+            {% if p.category %}
+              <span style="padding: 0.2rem 0.5rem; background: var(--pastel-yellow); color: var(--pastel-yellow-foreground); border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 500;">
+                {{ p.category|title }}
+              </span>
+            {% endif %}
+          </div>
+          <div class="excerpt">
             {% if p.summary %}
               {{ p.summary }}
             {% else %}
@@ -64,14 +89,15 @@
           </div>
           
           {% if p.tag_relationships %}
-            <div class="post-tags" style="margin-top:0.5rem;">
+            <div class="post-tags" style="margin-top: 1rem;">
+              <span style="color: var(--muted); font-size: 0.8rem; margin-right: 0.5rem;">🏷️ Tags:</span>
               {% for tag_rel in p.tag_relationships %}
-                <a href="{{ url_for('tag_posts', slug=tag_rel.tag.slug) }}" 
+                <a href="{{ url_for('tag_posts', slug=tag_rel.slug) }}" 
                    class="tag-link" 
-                   style="display:inline-block; margin:0.2rem 0.3rem 0.2rem 0; padding:0.2rem 0.5rem; background:#f8f9fa; border-radius:10px; text-decoration:none; color:#6c757d; font-size:0.75em; transition:background 0.2s;"
-                   onmouseover="this.style.background='#e9ecef';"
-                   onmouseout="this.style.background='#f8f9fa';">
-                  {{ tag_rel.tag.name }}
+                   style="display: inline-block; margin: 0.2rem 0.3rem 0.2rem 0; padding: 0.3rem 0.6rem; background: var(--hover-bg); border-radius: var(--radius-sm); text-decoration: none; color: var(--muted); font-size: 0.75em; transition: var(--transition); border: 1px solid var(--paper-border);"
+                   onmouseover="this.style.background='var(--accent)'; this.style.color='white'; this.style.borderColor='var(--accent)';"
+                   onmouseout="this.style.background='var(--hover-bg)'; this.style.color='var(--muted)'; this.style.borderColor='var(--paper-border)';">
+                  {{ tag_rel.name }}
                 </a>
               {% endfor %}
             </div>
@@ -80,23 +106,33 @@
       {% endfor %}
       </div>
     {% else %}
-      <div class="card">
-        <p class="muted">
+      <div class="card" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📚</div>
+        <h3 style="color: var(--paper-text); margin-bottom: 1rem;">
           {% if request.args.get('q') or request.args.get('category') or request.args.get('tag') %}
-            No posts found matching your search criteria.
+            No posts found matching your search
           {% else %}
-            No posts found.
+            No posts found
+          {% endif %}
+        </h3>
+        <p style="color: var(--muted); margin-bottom: 2rem;">
+          {% if request.args.get('q') or request.args.get('category') or request.args.get('tag') %}
+            Try adjusting your search criteria or browse all posts.
+          {% else %}
+            Check back soon for new content!
           {% endif %}
         </p>
         {% if request.args.get('q') or request.args.get('category') or request.args.get('tag') %}
-          <a href="{{ url_for('explore') }}" class="btn">View All Posts</a>
+          <a href="{{ url_for('explore') }}" class="btn btn-primary">View All Posts</a>
         {% endif %}
       </div>
     {% endif %}
   </div>
   
-  <div style="margin-top:1rem; text-align:center;">
-    <a class="btn" href="{{ url_for('tag_list') }}">Browse by Tags</a>
+  <div style="margin-top: 2rem; text-align: center;">
+    <a class="btn btn-outline" href="{{ url_for('tag_list') }}">
+      🏷️ Browse by Tags
+    </a>
   </div>
 </section>
 

@@ -1,7 +1,15 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, PasswordField, TextAreaField, SelectField, MultipleFileField, DateTimeLocalField
-from wtforms.validators import DataRequired, Length, Optional, Email
+from wtforms.validators import DataRequired, Length, Optional, Email, Regexp
+import re
+
+# Custom email validator that doesn't require external dependencies
+def simple_email_validator(form, field):
+    """Simple email validation without external dependencies."""
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, field.data):
+        raise ValueError('Please enter a valid email address')
 
 
 class LoginForm(FlaskForm):
@@ -38,7 +46,7 @@ class AuthorProfileForm(FlaskForm):
     ], description='Comma-separated list of your areas of expertise (e.g., Technology, Writing, Health)')
     email = StringField('Email', validators=[
         DataRequired(message='Email is required'),
-        Email(message='Please enter a valid email address'),
+        simple_email_validator,
         Length(max=120, message='Email cannot exceed 120 characters')
     ])
     twitter_handle = StringField('Twitter Handle', validators=[
@@ -86,3 +94,72 @@ class PostForm(FlaskForm):
         FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 
                    message='Only JPEG, PNG, and GIF files are allowed')
     ])
+
+
+class NewsletterSubscriptionForm(FlaskForm):
+    """Form for newsletter subscription."""
+    email = StringField('Email Address', validators=[
+        DataRequired(message='Email address is required'),
+        simple_email_validator,
+        Length(max=120, message='Email address cannot exceed 120 characters')
+    ])
+    frequency = SelectField('Frequency', choices=[
+        ('weekly', 'Weekly'),
+        ('bi-weekly', 'Bi-weekly'),
+        ('monthly', 'Monthly')
+    ], default='weekly', validators=[DataRequired()])
+
+
+class NewsletterUnsubscribeForm(FlaskForm):
+    """Form for newsletter unsubscription confirmation."""
+    confirm = SelectField('Confirm Unsubscription', choices=[
+        ('no', 'No, keep me subscribed'),
+        ('yes', 'Yes, unsubscribe me')
+    ], default='no', validators=[DataRequired()])
+
+
+class NewsletterFrequencyUpdateForm(FlaskForm):
+    """Form for updating newsletter frequency."""
+    frequency = SelectField('Email Frequency', choices=[
+        ('weekly', 'Weekly'),
+        ('bi-weekly', 'Bi-weekly'),
+        ('monthly', 'Monthly')
+    ], validators=[DataRequired()])
+
+
+class CommentForm(FlaskForm):
+    """Form for submitting comments on blog posts."""
+    author_name = StringField('Name', validators=[
+        DataRequired(message='Name is required'),
+        Length(min=1, max=100, message='Name must be between 1 and 100 characters')
+    ])
+    author_email = StringField('Email', validators=[
+        DataRequired(message='Email is required'),
+        simple_email_validator,
+        Length(max=120, message='Email cannot exceed 120 characters')
+    ], description='Your email will not be published')
+    content = TextAreaField('Comment', validators=[
+        DataRequired(message='Comment content is required'),
+        Length(min=1, max=2000, message='Comment must be between 1 and 2000 characters')
+    ], description='Share your thoughts on this post')
+
+
+class CommentModerationForm(FlaskForm):
+    """Form for moderating comments in the dashboard."""
+    action = SelectField('Action', choices=[
+        ('approve', 'Approve'),
+        ('reject', 'Reject'),
+        ('spam', 'Mark as Spam'),
+        ('delete', 'Delete')
+    ], validators=[DataRequired()])
+
+
+class BulkCommentModerationForm(FlaskForm):
+    """Form for bulk comment moderation actions."""
+    action = SelectField('Bulk Action', choices=[
+        ('', 'Select Action'),
+        ('approve', 'Approve Selected'),
+        ('reject', 'Reject Selected'),
+        ('spam', 'Mark as Spam'),
+        ('delete', 'Delete Selected')
+    ], validators=[DataRequired(message='Please select an action')])

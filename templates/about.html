@@ -13,7 +13,21 @@
             <div class="author-profile">
                 {% if profile_image_url %}
                 <div class="author-image">
-                    <img src="{{ profile_image_url }}" alt="{{ profile.name }}" class="profile-photo">
+                    <img src="{{ profile_image_url }}" 
+                         alt="{{ profile.name }}" 
+                         class="profile-photo"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; console.log('Failed to load profile image: {{ profile_image_url }}');">
+                    <!-- Fallback when image fails to load -->
+                    <div class="profile-photo-placeholder" style="display: none; width: 200px; height: 200px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-light), var(--accent)); align-items: center; justify-content: center; color: white; font-size: 4rem; font-weight: bold; border: 4px solid #f0f0f0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+                        {{ profile.name[0] if profile.name else '?' }}
+                    </div>
+                </div>
+                {% else %}
+                <!-- Fallback avatar when no profile image is set -->
+                <div class="author-image">
+                    <div class="profile-photo-placeholder" style="width: 200px; height: 200px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-light), var(--accent)); display: flex; align-items: center; justify-content: center; color: white; font-size: 4rem; font-weight: bold; border: 4px solid #f0f0f0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+                        {{ profile.name[0] if profile.name else '?' }}
+                    </div>
                 </div>
                 {% endif %}
                 
@@ -67,6 +81,21 @@
             </div>
         </div>
     </article>
+    
+    <!-- Developer Debug Information -->
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div style="margin-top: 2rem; padding: 1rem; background: var(--hover-bg); border-radius: var(--radius); border: 1px solid var(--paper-border);">
+        <h4 style="color: var(--accent); margin-bottom: 1rem;">👨‍💻 Debug Info</h4>
+        <div style="font-family: monospace; font-size: 0.8rem; color: var(--muted);">
+            <div>Profile Image URL: <code>{{ profile_image_url or 'None' }}</code></div>
+            <div>Profile Image File: <code>{{ profile.profile_image or 'None' }}</code></div>
+            <div style="margin-top: 0.5rem;">
+                <a href="{{ url_for('author_profile_management') }}" class="btn btn-sm">Edit Profile</a>
+                <a href="/debug/profile-image" target="_blank" class="btn btn-sm" style="margin-left: 0.5rem;">Debug JSON</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <style>

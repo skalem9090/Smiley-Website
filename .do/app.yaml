@@ -1,0 +1,25 @@
+name: smiley-blog
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: your-username/your-repo-name
+    branch: main
+  run_command: python app.py
+  environment_slug: python
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 5000
+  envs:
+  - key: SECRET_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    type: SECRET
+databases:
+- name: smiley-blog-db
+  engine: PG
+  num_nodes: 1
+  size: db-s-dev-database
+  version: "12"
