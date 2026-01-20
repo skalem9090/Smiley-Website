@@ -23,6 +23,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
+# Create necessary directories
+RUN mkdir -p instance static/uploads
+
 # Expose port
 EXPOSE 8080
 

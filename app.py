@@ -56,7 +56,12 @@ def sanitize_content(content):
 def create_app():
     app = Flask(__name__, static_folder='static', template_folder='templates')
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.abspath("instance/site.db")}')
+    
+    # Get database URL and fix Railway's postgres:// to postgresql://
+    database_url = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.abspath("instance/site.db")}')
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Configure upload settings
