@@ -29,5 +29,5 @@ RUN mkdir -p instance static/uploads
 # Expose port
 EXPOSE 8080
 
-# Run migrations and start application
-CMD python -m flask db upgrade && python start_production.py
+# Run migrations, create admin user, and start application
+CMD python -m flask db upgrade && python create_admin_user.py && python start_production.py
