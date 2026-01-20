@@ -59,9 +59,16 @@ def create_app():
     
     # Get database URL and fix Railway's postgres:// to postgresql://
     database_url = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.abspath("instance/site.db")}')
+    
+    # Debug logging for Railway deployment
+    print(f"[DATABASE] Raw DATABASE_URL from environment: {database_url[:50] if database_url else 'NOT SET'}...")
+    
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        print(f"[DATABASE] Converted postgres:// to postgresql://")
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print(f"[DATABASE] Final connection string: {database_url[:50]}...")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Configure upload settings
@@ -2781,6 +2788,30 @@ Allow: /rss.xml
         response.headers['Cache-Control'] = 'public, max-age=31536000'  # 1 year
         
         return response
+
+    @app.route('/emergency-reset-admin')
+    def emergency_reset_admin():
+        """Emergency endpoint to reset admin password. Remove after first use!"""
+        try:
+            username = os.environ.get('ADMIN_USER', 'TheOnlyUser')
+            password = os.environ.get('ADMIN_PASSWORD', 'TheOnlyPassword123!')
+            
+            user = User.query.filter_by(username=username).first()
+            
+            if user:
+                user.set_password(password)
+                user.is_admin = True
+                db.session.commit()
+                return f"✅ Password reset for user: {username}<br>You can now log in with the password from ADMIN_PASSWORD environment variable.<br><br>⚠️ IMPORTANT: Remove this endpoint from app.py after logging in!"
+            else:
+                # Create new admin user
+                admin = User(username=username, is_admin=True)
+                admin.set_password(password)
+                db.session.add(admin)
+                db.session.commit()
+                return f"✅ Admin user created: {username}<br>Password: {password}<br><br>⚠️ IMPORTANT: Remove this endpoint from app.py after logging in!"
+        except Exception as e:
+            return f"❌ Error: {str(e)}", 500
 
     return app
 
