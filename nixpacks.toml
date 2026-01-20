@@ -1,18 +1,15 @@
-[providers]
-python = "3.11"
-
 [phases.setup]
-nixPkgs = ['python311', 'nodejs', 'npm']
+nixPkgs = ['python311', 'nodejs-18_x', 'npm-9_x']
 
 [phases.install]
 cmds = [
   'npm install',
-  'python -m pip install --upgrade pip',
-  'pip install -r requirements.txt'
+  'python3.11 -m pip install --upgrade pip',
+  'python3.11 -m pip install -r requirements.txt'
 ]
 
 [phases.build]
 cmds = []
 
 [start]
-cmd = 'python -m flask db upgrade && python start_production.py'
+cmd = 'python3.11 -m flask db upgrade && python3.11 start_production.py'
