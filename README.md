@@ -27,7 +27,17 @@ A feature-rich blog platform built with Flask, focusing on wealth, health, and h
 - **Database Migrations**: Alembic-based database schema management
 - **Background Scheduling**: APScheduler for automated post publishing
 - **Image Processing**: PIL-based image optimization and resizing
-- **Security**: CSRF protection, content sanitization, and secure file uploads
+
+### Security Features
+- **Rate Limiting**: Configurable rate limits on login, admin, and password reset endpoints
+- **Account Lockout**: Automatic account lockout after failed login attempts with configurable duration
+- **Two-Factor Authentication (2FA)**: TOTP-based 2FA with QR code setup and backup codes
+- **Session Management**: Configurable session timeouts with automatic expiration
+- **Password Validation**: Enforced password complexity requirements
+- **Security Headers**: Comprehensive security headers including CSP, HSTS, X-Frame-Options
+- **HTTPS Enforcement**: Automatic HTTPS redirect in production environments
+- **Audit Logging**: Complete audit trail of admin actions and security events
+- **Security Dashboard**: Admin interface for viewing audit logs and login attempts
 
 ## 📋 Requirements
 
@@ -103,6 +113,75 @@ SITE_URL=http://localhost:5000
 - `MAX_CONTENT_LENGTH`: Maximum file upload size
 - `SITE_URL`: Base URL for RSS feeds and absolute links
 
+### Security Configuration
+
+Configure security features via environment variables in your `.env` file:
+
+#### Rate Limiting
+```env
+# Maximum login attempts per minute (default: 5)
+RATE_LIMIT_LOGIN=5
+
+# Maximum admin requests per minute (default: 30)
+RATE_LIMIT_ADMIN=30
+
+# Maximum password reset requests per hour (default: 3)
+RATE_LIMIT_PASSWORD_RESET=3
+```
+
+#### Account Lockout
+```env
+# Failed login attempts before lockout (default: 5)
+ACCOUNT_LOCKOUT_THRESHOLD=5
+
+# Lockout duration in minutes (default: 30)
+ACCOUNT_LOCKOUT_DURATION=30
+```
+
+#### Session Management
+```env
+# Session timeout in minutes (default: 30)
+SESSION_TIMEOUT_MINUTES=30
+```
+
+#### Password Requirements
+```env
+# Minimum password length (default: 12)
+PASSWORD_MIN_LENGTH=12
+
+# Require uppercase letters (default: true)
+PASSWORD_REQUIRE_UPPERCASE=true
+
+# Require lowercase letters (default: true)
+PASSWORD_REQUIRE_LOWERCASE=true
+
+# Require digits (default: true)
+PASSWORD_REQUIRE_DIGIT=true
+
+# Require special characters (default: true)
+PASSWORD_REQUIRE_SPECIAL=true
+```
+
+#### HTTPS and Security Headers
+```env
+# Enforce HTTPS in production (default: false)
+FORCE_HTTPS=true
+
+# Enable strict transport security (default: false)
+ENABLE_HSTS=true
+
+# HSTS max age in seconds (default: 31536000 = 1 year)
+HSTS_MAX_AGE=31536000
+```
+
+#### Two-Factor Authentication
+```env
+# Application name for 2FA (appears in authenticator apps)
+APP_NAME=Smileys Blog
+```
+
+See `.env.example` for a complete list of configuration options with detailed comments.
+
 ## 📖 Usage
 
 ### Admin Dashboard
@@ -112,6 +191,55 @@ Access the admin dashboard at `/dashboard` (requires login):
 - Upload and organize images
 - Manage author profile information
 - View post statistics and organization
+- Access security dashboard (audit logs and login attempts)
+- **Settings page** - Centralized security and account management:
+  - Account information and status
+  - Two-factor authentication management
+  - Password change and requirements
+  - Active session management
+  - Security audit logs preview
+  - Quick access to all security features
+
+### Security Features
+
+#### Two-Factor Authentication (2FA)
+
+Enable 2FA for enhanced account security:
+
+1. Log in to your account
+2. Navigate to `/setup-2fa`
+3. Scan the QR code with an authenticator app (Google Authenticator, Authy, etc.)
+4. Enter the 6-digit code to verify
+5. Save your backup codes in a secure location
+
+To disable 2FA:
+1. Navigate to `/disable-2fa`
+2. Enter your current password
+3. Enter a valid 2FA code
+4. Confirm the action
+
+#### Security Dashboard
+
+Admin users can access security monitoring at:
+- **Audit Logs**: `/security/audit-logs` - View all admin actions and security events
+- **Login Attempts**: `/security/login-attempts` - Monitor login attempts and failures
+
+Features:
+- Filter by date range, user, and action type
+- Pagination for large datasets
+- Export logs as CSV
+- Real-time monitoring of security events
+
+#### Password Management
+
+Password requirements are enforced on account creation and password changes:
+- Minimum 12 characters (configurable)
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one digit
+- At least one special character
+
+Change your password at `/change-password` (requires current password).
 
 ### Content Management
 
@@ -192,23 +320,79 @@ flask db downgrade
 
 ## 🚀 Deployment
 
-### Production Considerations
+### Quick Deploy (30 Minutes)
 
-1. **Environment Variables**: Set production values for all environment variables
-2. **Database**: Use PostgreSQL or MySQL for production
-3. **Web Server**: Use Gunicorn or uWSGI with Nginx
-4. **Static Files**: Configure proper static file serving
-5. **Security**: Enable HTTPS and set secure headers
-
-### Example Production Setup
+Your application is **production-ready** with complete deployment guides!
 
 ```bash
-# Install production dependencies
-pip install gunicorn
+# 1. Generate secure configuration
+python setup_production.py
 
-# Run with Gunicorn
-gunicorn -w 4 -b 0.0.0.0:8000 app:app
+# 2. Deploy to Railway (recommended)
+# See QUICK_DEPLOY.md for 4-command deployment
+
+# 3. Configure email service (SendGrid free tier)
+# 4. Set up custom domain (optional)
+# 5. Enable 2FA and create content
 ```
+
+### Deployment Resources
+
+- **Quick Start**: `QUICK_DEPLOY.md` - Deploy in 4 commands
+- **Complete Guide**: `DEPLOYMENT_GUIDE.md` - Step-by-step with Railway/Heroku
+- **Setup Helper**: `python setup_production.py` - Interactive configuration
+- **Production Summary**: `PRODUCTION_READY_SUMMARY.md` - Everything you need
+
+### What's Included
+
+✅ **PostgreSQL Setup** - Production database configuration  
+✅ **Email Service** - SendGrid/Mailgun integration with Flask-Mail  
+✅ **SSL Certificates** - Automatic HTTPS with Railway/Heroku  
+✅ **Environment Config** - Secure key generation and validation  
+✅ **Domain Setup** - Custom domain configuration guide  
+✅ **Security Hardening** - All security features pre-configured  
+✅ **Monitoring** - Sentry and uptime monitoring setup  
+
+### Deployment Options
+
+1. **Railway** (Recommended)
+   - Free PostgreSQL included
+   - Automatic SSL certificates
+   - Git-based deployments
+   - $5/month after free tier
+
+2. **Heroku**
+   - Well-documented platform
+   - Add-ons for PostgreSQL and email
+   - $7/month for basic dyno
+
+3. **DigitalOcean App Platform**
+   - Full control
+   - Managed databases
+   - $12/month
+
+### Security Hardening Checklist
+
+Your app includes enterprise-grade security features:
+
+✅ Two-Factor Authentication (TOTP)  
+✅ Account lockout after failed attempts  
+✅ Session management with timeouts  
+✅ Password complexity requirements  
+✅ Security headers (CSP, HSTS, X-Frame-Options)  
+✅ Audit logging for all admin actions  
+✅ Rate limiting on sensitive endpoints  
+✅ HTTPS enforcement  
+✅ CSRF protection  
+
+**Before deploying:**
+- [ ] Run `python setup_production.py` to generate secure keys
+- [ ] Configure email service (SendGrid recommended)
+- [ ] Set environment variables in hosting platform
+- [ ] Enable 2FA after first login
+- [ ] Create initial content
+
+See `DEPLOYMENT_GUIDE.md` for complete security setup instructions.
 
 ## 🤝 Contributing
 

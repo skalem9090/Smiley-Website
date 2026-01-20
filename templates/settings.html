@@ -1,0 +1,585 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings - Smileys Blog{% endblock %}
+
+{% block content %}
+<section class="container">
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+      <h1 style="margin: 0; color: #9b5e2b;">⚙️ Settings</h1>
+      <a href="{{ url_for('dashboard') }}" class="btn">← Back to Dashboard</a>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" style="margin-bottom: 1rem; padding: 1rem; border-radius: 6px; background: {% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#d1ecf1{% endif %}; border: 1px solid {% if category == 'success' %}#c3e6cb{% elif category == 'error' %}#f5c6cb{% else %}#bee5eb{% endif %}; color: {% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#0c5460{% endif %};">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Settings Navigation -->
+    <nav class="settings-nav" style="margin-bottom: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button class="btn btn-sm" onclick="showSection('account')" id="btn-account">👤 Account</button>
+        <button class="btn btn-sm" onclick="showSection('security')" id="btn-security">🔒 Security</button>
+        <button class="btn btn-sm" onclick="showSection('password')" id="btn-password">🔑 Password</button>
+        <button class="btn btn-sm" onclick="showSection('2fa')" id="btn-2fa">🛡️ Two-Factor Auth</button>
+        <button class="btn btn-sm" onclick="showSection('sessions')" id="btn-sessions">📱 Sessions</button>
+        <button class="btn btn-sm" onclick="showSection('audit')" id="btn-audit">📋 Audit Logs</button>
+      </div>
+    </nav>
+
+    <!-- Account Settings Section -->
+    <div id="section-account" class="settings-section">
+      <h2>Account Settings</h2>
+      <div class="card" style="margin-top: 1rem;">
+        <h3>User Information</h3>
+        <div style="display: grid; grid-template-columns: 200px 1fr; gap: 1rem; margin-top: 1rem;">
+          <div style="font-weight: bold; color: #666;">Username:</div>
+          <div>{{ current_user.username }}</div>
+          
+          <div style="font-weight: bold; color: #666;">Account Created:</div>
+          <div>{{ current_user.created_at.strftime('%Y-%m-%d %H:%M') if current_user.created_at else 'N/A' }}</div>
+          
+          <div style="font-weight: bold; color: #666;">Last Login:</div>
+          <div>{{ current_user.last_login.strftime('%Y-%m-%d %H:%M') if current_user.last_login else 'Never' }}</div>
+          
+          <div style="font-weight: bold; color: #666;">Account Status:</div>
+          <div>
+            {% if current_user.is_locked %}
+              <span class="badge badge-danger">🔒 Locked</span>
+            {% else %}
+              <span class="badge badge-success">✓ Active</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Security Settings Section -->
+    <div id="section-security" class="settings-section" style="display: none;">
+      <h2>Security Overview</h2>
+      
+      <!-- Security Status Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <!-- 2FA Status -->
+        <div class="card">
+          <h3>Two-Factor Authentication</h3>
+          <div style="margin-top: 1rem;">
+            {% if current_user.two_factor_enabled %}
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span class="badge badge-success">✓ Enabled</span>
+                <span style="color: #666; font-size: 0.9rem;">Your account is protected</span>
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <a href="{{ url_for('disable_2fa') }}" class="btn btn-sm">Disable 2FA</a>
+                <a href="{{ url_for('regenerate_backup_codes') }}" class="btn btn-sm">Regenerate Codes</a>
+              </div>
+            {% else %}
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span class="badge badge-warning">⚠ Disabled</span>
+                <span style="color: #666; font-size: 0.9rem;">Recommended for security</span>
+              </div>
+              <a href="{{ url_for('setup_2fa') }}" class="btn btn-primary">Enable 2FA</a>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Account Lockout Status -->
+        <div class="card">
+          <h3>Account Lockout</h3>
+          <div style="margin-top: 1rem;">
+            {% if current_user.is_locked %}
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span class="badge badge-danger">🔒 Locked</span>
+                <span style="color: #666; font-size: 0.9rem;">Too many failed attempts</span>
+              </div>
+              <p style="font-size: 0.9rem; color: #666;">
+                Locked until: {{ current_user.locked_until.strftime('%Y-%m-%d %H:%M') if current_user.locked_until else 'Unknown' }}
+              </p>
+            {% else %}
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <span class="badge badge-success">✓ Active</span>
+                <span style="color: #666; font-size: 0.9rem;">No lockout</span>
+              </div>
+              <p style="font-size: 0.9rem; color: #666;">
+                Failed attempts: {{ current_user.failed_login_attempts or 0 }} / 5
+              </p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Session Security -->
+        <div class="card">
+          <h3>Session Security</h3>
+          <div style="margin-top: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+              <span class="badge badge-info">📱 Active</span>
+              <span style="color: #666; font-size: 0.9rem;">Session timeout: 30 min</span>
+            </div>
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
+              Current session expires after 30 minutes of inactivity.
+            </p>
+            <button onclick="showSection('sessions')" class="btn btn-sm">View All Sessions</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Actions -->
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Security Actions</h3>
+        <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+          <a href="{{ url_for('security_audit_logs') }}" class="btn">📋 View Audit Logs</a>
+          <a href="{{ url_for('security_login_attempts') }}" class="btn">🔍 View Login Attempts</a>
+          <a href="{{ url_for('change_password') }}" class="btn">🔑 Change Password</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password Settings Section -->
+    <div id="section-password" class="settings-section" style="display: none;">
+      <h2>Password Settings</h2>
+      
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Change Password</h3>
+        <p style="color: #666; margin-bottom: 1rem;">
+          Update your password to keep your account secure. Passwords must meet the following requirements:
+        </p>
+        
+        <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+          <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">Password Requirements:</h4>
+          <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.9rem; color: #666;">
+            <li>Minimum 12 characters</li>
+            <li>At least one uppercase letter</li>
+            <li>At least one lowercase letter</li>
+            <li>At least one digit</li>
+            <li>At least one special character (!@#$%^&*)</li>
+          </ul>
+        </div>
+        
+        <a href="{{ url_for('change_password') }}" class="btn btn-primary">Change Password</a>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Password History</h3>
+        <p style="color: #666;">
+          Last password change: {{ current_user.password_changed_at.strftime('%Y-%m-%d %H:%M') if current_user.password_changed_at else 'Never' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Two-Factor Authentication Section -->
+    <div id="section-2fa" class="settings-section" style="display: none;">
+      <h2>Two-Factor Authentication (2FA)</h2>
+      
+      <div class="card" style="margin-top: 1rem;">
+        <h3>What is Two-Factor Authentication?</h3>
+        <p style="color: #666; line-height: 1.6;">
+          Two-factor authentication adds an extra layer of security to your account. In addition to your password, 
+          you'll need to enter a 6-digit code from your authenticator app when logging in.
+        </p>
+      </div>
+
+      {% if current_user.two_factor_enabled %}
+        <div class="card" style="margin-top: 1rem;">
+          <h3>2FA Status</h3>
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <span class="badge badge-success" style="font-size: 1rem;">✓ Enabled</span>
+            <span style="color: #666;">Your account is protected with 2FA</span>
+          </div>
+          
+          <div style="background: #d4edda; padding: 1rem; border-radius: 6px; border: 1px solid #c3e6cb; margin-bottom: 1rem;">
+            <p style="margin: 0; color: #155724;">
+              <strong>✓ Two-factor authentication is active</strong><br>
+              You'll be prompted for a verification code when logging in from new devices.
+            </p>
+          </div>
+
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a href="{{ url_for('regenerate_backup_codes') }}" class="btn btn-primary">🔄 Regenerate Backup Codes</a>
+            <a href="{{ url_for('disable_2fa') }}" class="btn btn-danger">❌ Disable 2FA</a>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 1rem;">
+          <h3>Backup Codes</h3>
+          <p style="color: #666; margin-bottom: 1rem;">
+            Backup codes allow you to access your account if you lose access to your authenticator app. 
+            Each code can only be used once.
+          </p>
+          <p style="color: #666;">
+            <strong>Remaining backup codes:</strong> {{ current_user.backup_codes_remaining }} / 10
+          </p>
+          {% if current_user.backup_codes_remaining < 3 %}
+            <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border: 1px solid #ffeaa7; margin-top: 1rem;">
+              <p style="margin: 0; color: #856404;">
+                <strong>⚠ Low backup codes</strong><br>
+                You're running low on backup codes. Consider regenerating them.
+              </p>
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="card" style="margin-top: 1rem;">
+          <h3>Enable 2FA</h3>
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <span class="badge badge-warning" style="font-size: 1rem;">⚠ Disabled</span>
+            <span style="color: #666;">2FA is not enabled on your account</span>
+          </div>
+          
+          <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border: 1px solid #ffeaa7; margin-bottom: 1rem;">
+            <p style="margin: 0; color: #856404;">
+              <strong>⚠ Security Recommendation</strong><br>
+              Enable two-factor authentication to significantly improve your account security.
+            </p>
+          </div>
+
+          <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">How to Enable 2FA:</h4>
+          <ol style="color: #666; line-height: 1.8;">
+            <li>Download an authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.)</li>
+            <li>Click the "Enable 2FA" button below</li>
+            <li>Scan the QR code with your authenticator app</li>
+            <li>Enter the 6-digit code to verify</li>
+            <li>Save your backup codes in a secure location</li>
+          </ol>
+
+          <a href="{{ url_for('setup_2fa') }}" class="btn btn-primary" style="margin-top: 1rem;">🛡️ Enable Two-Factor Authentication</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Sessions Section -->
+    <div id="section-sessions" class="settings-section" style="display: none;">
+      <h2>Active Sessions</h2>
+      
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Session Management</h3>
+        <p style="color: #666; margin-bottom: 1rem;">
+          View and manage your active sessions. Sessions expire after 30 minutes of inactivity.
+        </p>
+        
+        <div id="sessions-list" style="margin-top: 1rem;">
+          <div class="loading-spinner">Loading sessions...</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Session Security Settings</h3>
+        <div style="display: grid; grid-template-columns: 200px 1fr; gap: 1rem; margin-top: 1rem;">
+          <div style="font-weight: bold; color: #666;">Session Timeout:</div>
+          <div>30 minutes of inactivity</div>
+          
+          <div style="font-weight: bold; color: #666;">Secure Cookies:</div>
+          <div><span class="badge badge-success">✓ Enabled</span></div>
+          
+          <div style="font-weight: bold; color: #666;">HttpOnly Cookies:</div>
+          <div><span class="badge badge-success">✓ Enabled</span></div>
+          
+          <div style="font-weight: bold; color: #666;">SameSite Policy:</div>
+          <div><span class="badge badge-info">Lax</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Logs Section -->
+    <div id="section-audit" class="settings-section" style="display: none;">
+      <h2>Security Audit Logs</h2>
+      
+      <div class="card" style="margin-top: 1rem;">
+        <h3>Recent Activity</h3>
+        <p style="color: #666; margin-bottom: 1rem;">
+          View your recent account activity and security events.
+        </p>
+        
+        <div id="audit-logs-preview" style="margin-top: 1rem;">
+          <div class="loading-spinner">Loading audit logs...</div>
+        </div>
+        
+        <div style="margin-top: 1rem;">
+          <a href="{{ url_for('security_audit_logs') }}" class="btn btn-primary">View Full Audit Logs</a>
+          <a href="{{ url_for('security_login_attempts') }}" class="btn">View Login Attempts</a>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <h3>What's Logged?</h3>
+        <ul style="color: #666; line-height: 1.8;">
+          <li>Login and logout events</li>
+          <li>Password changes</li>
+          <li>2FA setup and changes</li>
+          <li>Failed login attempts</li>
+          <li>Account lockouts</li>
+          <li>Security setting changes</li>
+          <li>Administrative actions</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.settings-section {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+  border-radius: 12px;
+}
+
+.badge-success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.badge-info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.loading-spinner::before {
+  content: "⏳ ";
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+// Settings page functionality
+(function() {
+  // Show specific settings section
+  window.showSection = function(sectionName) {
+    // Hide all sections
+    document.querySelectorAll('.settings-section').forEach(section => {
+      section.style.display = 'none';
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.settings-nav button').forEach(btn => {
+      btn.classList.remove('btn-primary');
+    });
+    
+    // Show selected section
+    const section = document.getElementById('section-' + sectionName);
+    if (section) {
+      section.style.display = 'block';
+      
+      // Add active class to button
+      const btn = document.getElementById('btn-' + sectionName);
+      if (btn) {
+        btn.classList.add('btn-primary');
+      }
+      
+      // Load dynamic content if needed
+      if (sectionName === 'sessions') {
+        loadSessions();
+      } else if (sectionName === 'audit') {
+        loadAuditLogsPreview();
+      }
+    }
+  };
+  
+  // Load active sessions
+  function loadSessions() {
+    const container = document.getElementById('sessions-list');
+    container.innerHTML = '<div class="loading-spinner">Loading sessions...</div>';
+    
+    fetch('/api/security/sessions')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.sessions) {
+          displaySessions(data.sessions, data.note);
+        } else {
+          container.innerHTML = '<p style="color: #666;">No active sessions found.</p>';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading sessions:', error);
+        container.innerHTML = `
+          <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border: 1px solid #ffeaa7;">
+            <p style="margin: 0; color: #856404;">
+              <strong>⚠ Session Management Not Fully Configured</strong><br>
+              Full session management requires a Redis or database backend. Currently showing current session only.
+            </p>
+          </div>
+        `;
+      });
+  }
+  
+  function displaySessions(sessions, note) {
+    const container = document.getElementById('sessions-list');
+    
+    if (sessions.length === 0) {
+      container.innerHTML = '<p style="color: #666;">No active sessions found.</p>';
+      return;
+    }
+    
+    let html = '';
+    
+    // Show note if present
+    if (note) {
+      html += `
+        <div style="background: #d1ecf1; padding: 1rem; border-radius: 6px; border: 1px solid #bee5eb; margin-bottom: 1rem;">
+          <p style="margin: 0; color: #0c5460;">
+            <strong>ℹ️ Note:</strong> ${note}
+          </p>
+        </div>
+      `;
+    }
+    
+    html += '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+    
+    sessions.forEach(session => {
+      const isCurrent = session.is_current;
+      html += `
+        <div style="padding: 1rem; background: ${isCurrent ? '#d4edda' : '#f8f9fa'}; border-radius: 6px; border: 1px solid ${isCurrent ? '#c3e6cb' : '#dee2e6'};">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+              <div style="font-weight: bold; margin-bottom: 0.5rem;">
+                ${session.device || 'Unknown Device'}
+                ${isCurrent ? '<span class="badge badge-success" style="margin-left: 0.5rem;">Current</span>' : ''}
+              </div>
+              <div style="font-size: 0.85rem; color: #666;">
+                <div>IP: ${session.ip_address || 'Unknown'}</div>
+                <div>Last Active: ${session.last_activity || 'Unknown'}</div>
+                <div>Created: ${session.created_at || 'Unknown'}</div>
+              </div>
+            </div>
+            ${!isCurrent ? `
+              <button class="btn btn-sm btn-danger" onclick="revokeSession('${session.id}')" disabled title="Requires session backend">Revoke</button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  // Revoke session
+  window.revokeSession = function(sessionId) {
+    if (!confirm('Are you sure you want to revoke this session?')) {
+      return;
+    }
+    
+    fetch(`/api/security/sessions/${sessionId}/revoke`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Session revoked successfully');
+        loadSessions();
+      } else {
+        alert('Error revoking session: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(error => {
+      console.error('Error revoking session:', error);
+      alert('Error revoking session');
+    });
+  };
+  
+  // Load audit logs preview
+  function loadAuditLogsPreview() {
+    const container = document.getElementById('audit-logs-preview');
+    container.innerHTML = '<div class="loading-spinner">Loading audit logs...</div>';
+    
+    fetch('/api/security/audit-logs?limit=10')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.logs) {
+          displayAuditLogsPreview(data.logs);
+        } else {
+          container.innerHTML = '<p style="color: #666;">No audit logs found.</p>';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading audit logs:', error);
+        container.innerHTML = '<p style="color: #dc3545;">Error loading audit logs.</p>';
+      });
+  }
+  
+  function displayAuditLogsPreview(logs) {
+    const container = document.getElementById('audit-logs-preview');
+    
+    if (logs.length === 0) {
+      container.innerHTML = '<p style="color: #666;">No audit logs found.</p>';
+      return;
+    }
+    
+    let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+    
+    logs.slice(0, 10).forEach(log => {
+      const actionClass = log.action.includes('failed') || log.action.includes('locked') ? 'badge-danger' : 
+                         log.action.includes('success') || log.action.includes('enabled') ? 'badge-success' : 
+                         'badge-info';
+      
+      html += `
+        <div style="padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+          <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+            <div style="flex: 1;">
+              <div style="margin-bottom: 0.25rem;">
+                <span class="badge ${actionClass}">${log.action}</span>
+              </div>
+              <div style="font-size: 0.85rem; color: #666;">
+                ${log.details || 'No details'}
+              </div>
+            </div>
+            <div style="font-size: 0.75rem; color: #999; white-space: nowrap;">
+              ${log.timestamp || 'Unknown'}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  // Show account section by default
+  showSection('account');
+})();
+</script>
+{% endblock %}

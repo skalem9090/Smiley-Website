@@ -11,11 +11,31 @@ import pytest
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from hypothesis import given, strategies as st, settings, HealthCheck
-from flask import url_for
+from flask import Flask, url_for
 from models import db, Post
 from post_manager import PostManager
 from search_engine import SearchEngine
 from feed_generator import FeedGenerator
+
+
+@pytest.fixture
+def app_context():
+    """Create test Flask app with in-memory database."""
+    app = Flask(__name__)
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SECRET_KEY'] = 'test-secret'
+    app.config['WTF_CSRF_ENABLED'] = False
+    app.config['SERVER_NAME'] = 'localhost'
+    
+    db.init_app(app)
+    
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.session.remove()
+        db.drop_all()
 
 
 class TestContentUpdateSynchronization:

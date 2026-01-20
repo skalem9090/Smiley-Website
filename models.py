@@ -134,12 +134,125 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    
+    # Security fields for account lockout
+    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def is_locked(self) -> bool:
+        """Check if account is currently locked"""
+        if self.locked_until is None:
+            return False
+        # Ensure both datetimes are timezone-aware for comparison
+        now = datetime.now(timezone.utc)
+        locked_until = self.locked_until
+        if locked_until.tzinfo is None:
+            # If locked_until is naive, assume it's UTC
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+        return now < locked_until
+    
+    def reset_failed_attempts(self) -> None:
+        """Reset failed login attempt counter"""
+        self.failed_login_attempts = 0
+        self.locked_until = None
+    
+    @property
+    def two_factor_enabled(self) -> bool:
+        """Check if two-factor authentication is enabled for this user"""
+        return self.two_factor_auth is not None and self.two_factor_auth.enabled
+    
+    @property
+    def backup_codes_remaining(self) -> int:
+        """Get the number of remaining backup codes"""
+        if not self.two_factor_auth or not self.two_factor_auth.backup_codes:
+            return 0
+        try:
+            import json
+            codes = json.loads(self.two_factor_auth.backup_codes)
+            return len(codes) if isinstance(codes, list) else 0
+        except (json.JSONDecodeError, TypeError):
+            return 0
+
+
+class LoginAttempt(db.Model):
+    """Records login attempts for security monitoring"""
+    
+    __tablename__ = 'login_attempts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    username = db.Column(db.String(100), nullable=False)
+    ip_address = db.Column(db.String(45), nullable=False)  # IPv6 compatible
+    success = db.Column(db.Boolean, nullable=False)
+    failure_reason = db.Column(db.String(200), nullable=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    
+    # Relationship
+    user = db.relationship('User', backref='login_attempts')
+    
+    # Indexes for query performance
+    __table_args__ = (
+        db.Index('idx_login_attempts_timestamp', 'timestamp'),
+        db.Index('idx_login_attempts_username', 'username'),
+        db.Index('idx_login_attempts_ip', 'ip_address'),
+    )
+    
+    def __repr__(self):
+        return f"<LoginAttempt {self.id} {self.username} {'success' if self.success else 'failed'}>"
+
+
+class AuditLog(db.Model):
+    """Records administrative actions for compliance"""
+    
+    __tablename__ = 'audit_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    username = db.Column(db.String(100), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False)
+    details = db.Column(db.Text, nullable=True)  # JSON string
+    ip_address = db.Column(db.String(45), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    
+    # Relationship
+    user = db.relationship('User', backref='audit_logs')
+    
+    # Indexes for query performance
+    __table_args__ = (
+        db.Index('idx_audit_logs_timestamp', 'timestamp'),
+        db.Index('idx_audit_logs_user', 'user_id'),
+        db.Index('idx_audit_logs_action', 'action_type'),
+    )
+    
+    def __repr__(self):
+        return f"<AuditLog {self.id} {self.username} {self.action_type}>"
+
+
+class TwoFactorAuth(db.Model):
+    """Stores two-factor authentication data"""
+    
+    __tablename__ = 'two_factor_auth'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    secret = db.Column(db.String(32), nullable=False)  # Base32 encoded
+    enabled = db.Column(db.Boolean, nullable=False, default=False)
+    backup_codes = db.Column(db.Text, nullable=True)  # JSON array of hashed codes
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    last_used = db.Column(db.DateTime, nullable=True)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('two_factor_auth', uselist=False))
+    
+    def __repr__(self):
+        return f"<TwoFactorAuth {self.id} user_id={self.user_id} enabled={self.enabled}>"
 
 
 class Image(db.Model):

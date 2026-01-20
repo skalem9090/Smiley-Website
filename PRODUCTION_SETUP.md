@@ -99,13 +99,218 @@ python test_server.py
 
 ## 🔒 Security Considerations
 
+## 🔒 Security Considerations
+
+### Security Hardening Checklist
+
+Before deploying to production, complete this security checklist:
+
+#### Essential Security Configuration
+
+- [ ] **Secret Key**: Set a strong, random `SECRET_KEY` (minimum 32 characters)
+  ```bash
+  python -c "import secrets; print(secrets.token_hex(32))"
+  ```
+
+- [ ] **HTTPS Setup**: Configure SSL/TLS certificates
+  - Use Let's Encrypt for free certificates
+  - Or obtain certificates from a commercial CA
+  - Verify HTTPS is working correctly
+
+- [ ] **HTTPS Enforcement**: Enable in `.env`
+  ```env
+  FORCE_HTTPS=true
+  ENABLE_HSTS=true
+  HSTS_MAX_AGE=31536000
+  ```
+
+- [ ] **Database**: Use PostgreSQL or MySQL instead of SQLite
+  ```env
+  DATABASE_URL=postgresql://user:password@localhost/dbname
+  ```
+
+#### Rate Limiting Configuration
+
+- [ ] **Configure Rate Limits**: Adjust based on expected traffic
+  ```env
+  RATE_LIMIT_LOGIN=5          # Login attempts per minute
+  RATE_LIMIT_ADMIN=30         # Admin requests per minute
+  RATE_LIMIT_PASSWORD_RESET=3 # Password resets per hour
+  ```
+
+- [ ] **Redis Backend** (Recommended for production):
+  ```env
+  REDIS_URL=redis://localhost:6379/0
+  ```
+  Install Redis:
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install redis-server
+  
+  # Windows (via Chocolatey)
+  choco install redis-64
+  
+  # macOS
+  brew install redis
+  ```
+
+#### Account Security
+
+- [ ] **Account Lockout**: Configure thresholds
+  ```env
+  ACCOUNT_LOCKOUT_THRESHOLD=5  # Failed attempts before lockout
+  ACCOUNT_LOCKOUT_DURATION=30  # Lockout duration in minutes
+  ```
+
+- [ ] **Session Management**: Set appropriate timeout
+  ```env
+  SESSION_TIMEOUT_MINUTES=30   # Session timeout in minutes
+  ```
+
+- [ ] **Password Requirements**: Enforce strong passwords
+  ```env
+  PASSWORD_MIN_LENGTH=12
+  PASSWORD_REQUIRE_UPPERCASE=true
+  PASSWORD_REQUIRE_LOWERCASE=true
+  PASSWORD_REQUIRE_DIGIT=true
+  PASSWORD_REQUIRE_SPECIAL=true
+  ```
+
+#### Two-Factor Authentication
+
+- [ ] **Enable 2FA**: Set application name
+  ```env
+  APP_NAME=Your Blog Name
+  ```
+
+- [ ] **Admin Accounts**: Enable 2FA for all admin users
+  1. Log in as admin
+  2. Navigate to `/setup-2fa`
+  3. Scan QR code with authenticator app
+  4. Save backup codes securely
+
+#### Security Monitoring
+
+- [ ] **Audit Logging**: Verify audit logs are working
+  - Check `/security/audit-logs` (admin only)
+  - Verify login attempts are logged
+  - Test filtering and export functionality
+
+- [ ] **Log Retention**: Set up automated log cleanup
+  ```python
+  # Example: Delete logs older than 90 days
+  from datetime import datetime, timedelta
+  from models import AuditLog, LoginAttempt
+  
+  cutoff = datetime.utcnow() - timedelta(days=90)
+  AuditLog.query.filter(AuditLog.timestamp < cutoff).delete()
+  LoginAttempt.query.filter(LoginAttempt.timestamp < cutoff).delete()
+  db.session.commit()
+  ```
+
+- [ ] **Security Monitoring**: Set up alerts for:
+  - Multiple failed login attempts
+  - Account lockouts
+  - Rate limit violations
+  - 2FA changes
+  - Unusual admin activity
+
+#### Testing Security Features
+
+- [ ] **Test Rate Limiting**: Verify limits are enforced
+  ```bash
+  # Should block after 5 attempts
+  for i in {1..10}; do curl -X POST http://localhost:5000/login; done
+  ```
+
+- [ ] **Test Account Lockout**: Verify lockout after failed attempts
+  - Attempt login with wrong password 6 times
+  - Verify account is locked
+  - Wait for lockout duration
+  - Verify account is unlocked
+
+- [ ] **Test 2FA Flow**: Complete 2FA setup and login
+  - Enable 2FA for test account
+  - Logout and login again
+  - Verify 2FA code is required
+  - Test backup code functionality
+
+- [ ] **Test Session Timeout**: Verify automatic logout
+  - Login to account
+  - Wait for SESSION_TIMEOUT_MINUTES + 1 minute
+  - Attempt to access protected route
+  - Verify redirect to login
+
+- [ ] **Test Security Headers**: Verify headers are present
+  ```bash
+  curl -I https://yourdomain.com
+  ```
+  Check for:
+  - Content-Security-Policy
+  - X-Frame-Options
+  - X-Content-Type-Options
+  - Strict-Transport-Security (HTTPS only)
+
+### Additional Security Recommendations
+
+#### Firewall Configuration
+
+- [ ] Restrict access to necessary ports only:
+  - Port 80 (HTTP) - for HTTPS redirect
+  - Port 443 (HTTPS) - for application
+  - Port 22 (SSH) - for administration (restrict to specific IPs)
+
+#### Database Security
+
+- [ ] Use strong database passwords
+- [ ] Restrict database access to application server only
+- [ ] Enable database encryption at rest
+- [ ] Regular database backups
+- [ ] Test backup restoration
+
+#### Application Security
+
+- [ ] Keep dependencies up to date
+  ```bash
+  pip list --outdated
+  pip install --upgrade -r requirements.txt
+  ```
+
+- [ ] Regular security audits
+  ```bash
+  pip install safety
+  safety check
+  ```
+
+- [ ] Monitor for security vulnerabilities
+- [ ] Set up automated dependency updates
+
+#### Backup Strategy
+
+- [ ] Database backups (daily)
+- [ ] Application code backups
+- [ ] Environment configuration backups
+- [ ] SSL/TLS certificate backups
+- [ ] Test restoration procedures
+
+### Security Resources
+
+For detailed security configuration, see:
+- `SECURITY_CONFIGURATION.md` - Comprehensive security guide
+- `.env.example` - All configuration options with comments
+- `/security/audit-logs` - Security event monitoring (admin only)
+- `/security/login-attempts` - Login attempt monitoring (admin only)
+
 ### For Production Deployment:
 
 1. **Environment Variables**: Never commit `.env` files
-2. **Secret Key**: Use a strong, random secret key
+2. **Secret Key**: Use a strong, random secret key (see security checklist above)
 3. **Database**: Use PostgreSQL or MySQL instead of SQLite
-4. **HTTPS**: Configure SSL/TLS certificates
+4. **HTTPS**: Configure SSL/TLS certificates (see security checklist above)
 5. **Firewall**: Restrict access to necessary ports only
+6. **Security**: Complete the security hardening checklist above
+7. **Monitoring**: Set up security event monitoring and alerts
+8. **Backups**: Implement automated backup strategy
 6. **Reverse Proxy**: Use Nginx or Apache as a reverse proxy
 
 ### Example Nginx Configuration:

@@ -4007,10 +4007,59 @@ label{
     border-color: #f59e0b !important;
 }
 
+[data-theme="dark"] .post-status-section {
+    background: transparent;
+}
+
 [data-theme="dark"] .post-status-section h4 {
     color: #f59e0b !important;
     border-bottom-color: #f59e0b !important;
     text-shadow: none;
+}
+
+[data-theme="dark"] .post-list {
+    background: transparent;
+}
+
+[data-theme="dark"] .post-card {
+    background: #1a1a1a !important;
+    background-image: none !important;
+    border: 2px solid #333333 !important;
+    color: #e0e0e0 !important;
+}
+
+[data-theme="dark"] .post-card:hover {
+    background: #1f1f1f !important;
+    border-color: #404040 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .post-card::before {
+    background: linear-gradient(180deg, #f59e0b, #d97706);
+}
+
+[data-theme="dark"] .post-card .title {
+    color: #e0e0e0 !important;
+}
+
+[data-theme="dark"] .post-card .title a {
+    color: #e0e0e0 !important;
+}
+
+[data-theme="dark"] .post-card .title a:hover {
+    color: #f59e0b !important;
+}
+
+[data-theme="dark"] .post-card .meta {
+    color: #a0a0a0 !important;
+}
+
+[data-theme="dark"] .post-card .excerpt {
+    color: #b0b0b0 !important;
+}
+
+[data-theme="dark"] .post-actions {
+    border-top-color: #333333 !important;
 }
 
 [data-theme="dark"] .status-ok {

@@ -11,7 +11,7 @@ date, and content in chronological order below the post.
 import pytest
 import uuid
 from datetime import datetime, timezone, timedelta
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from hypothesis.strategies import composite
 
 from flask import Flask
@@ -27,11 +27,11 @@ def valid_comment_data(draw):
     
     # Generate valid email
     local_part = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     domain = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     tld = draw(st.sampled_from(['com', 'org', 'net', 'edu', 'gov']))
@@ -83,10 +83,14 @@ class TestCommentDisplayFormat:
             db.session.add(test_post)
             db.session.commit()
             
-        return app, test_post.id, admin_user.id
+            # Store IDs before leaving context
+            post_id = test_post.id
+            admin_id = admin_user.id
+            
+        return app, post_id, admin_id
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_approved_comment_display_format(self, comment_data):
         """
         **Property 17: Comment Display Format (Basic Display)**
@@ -146,7 +150,7 @@ class TestCommentDisplayFormat:
             assert our_comment_data['content'] == comment_data['content'], "Tree should preserve content"
     
     @given(st.lists(valid_comment_data(), min_size=2, max_size=5))
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_chronological_comment_ordering(self, comments_data):
         """
         **Property 17: Comment Display Format (Chronological Order)**
@@ -214,7 +218,7 @@ class TestCommentDisplayFormat:
                     "Comment tree should maintain chronological order"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_content_preservation(self, comment_data):
         """
         **Property 17: Comment Display Format (Content Preservation)**
@@ -260,7 +264,7 @@ class TestCommentDisplayFormat:
             assert '@#$%^&*()' in tree_comment['content'], "Special characters should be preserved"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_unapproved_comment_exclusion(self, comment_data):
         """
         **Property 17: Comment Display Format (Visibility Control)**

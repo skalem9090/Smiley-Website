@@ -7,7 +7,7 @@ correctness properties across various scenarios and data inputs.
 
 import pytest
 import hypothesis.strategies as st
-from hypothesis import given, assume, settings
+from hypothesis import given, assume, settings, HealthCheck
 from datetime import datetime, timezone, timedelta
 import tempfile
 import os
@@ -71,7 +71,7 @@ class TestNewsletterSubscriptionWorkflow:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=30, deadline=5000)
+    @settings(max_examples=30, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_subscription_creates_unconfirmed_record(self, app, newsletter_manager, email, frequency):
         """Property: Subscription must create an unconfirmed record with tokens."""
         with app.app_context():
@@ -102,7 +102,7 @@ class TestNewsletterSubscriptionWorkflow:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=20, deadline=5000)
+    @settings(max_examples=20, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_duplicate_subscription_handling(self, app, newsletter_manager, email, frequency):
         """Property: Duplicate subscriptions must be handled gracefully."""
         with app.app_context():
@@ -134,7 +134,7 @@ class TestNewsletterSubscriptionWorkflow:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=20, deadline=5000)
+    @settings(max_examples=20, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confirmation_workflow(self, app, newsletter_manager, email, frequency):
         """Property: Confirmation must properly activate subscription."""
         with app.app_context():
@@ -165,7 +165,7 @@ class TestNewsletterSubscriptionWorkflow:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=15, deadline=5000)
+    @settings(max_examples=15, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_invalid_confirmation_token(self, app, newsletter_manager, email, frequency):
         """Property: Invalid confirmation tokens must be rejected."""
         with app.app_context():
@@ -185,7 +185,7 @@ class TestNewsletterDigestGeneration:
         frequency=frequency_strategy,
         num_posts=st.integers(min_value=1, max_value=8)
     )
-    @settings(max_examples=20, deadline=5000)
+    @settings(max_examples=20, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_digest_includes_recent_posts(self, app, newsletter_manager, frequency, num_posts):
         """Property: Digest must include recent published posts within the frequency period."""
         with app.app_context():
@@ -236,7 +236,7 @@ class TestNewsletterDigestGeneration:
         num_old_posts=st.integers(min_value=1, max_value=5),
         num_new_posts=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=15, deadline=5000)
+    @settings(max_examples=15, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_digest_excludes_old_posts(self, app, newsletter_manager, frequency, num_old_posts, num_new_posts):
         """Property: Digest must exclude posts outside the frequency period."""
         with app.app_context():
@@ -302,7 +302,7 @@ class TestNewsletterDigestGeneration:
     @given(
         frequency=frequency_strategy
     )
-    @settings(max_examples=10, deadline=5000)
+    @settings(max_examples=10, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_empty_digest_handling(self, app, newsletter_manager, frequency):
         """Property: Empty digest (no posts) must be handled gracefully."""
         with app.app_context():
@@ -321,7 +321,7 @@ class TestNewsletterUnsubscribeAvailability:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=20, deadline=5000)
+    @settings(max_examples=20, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_unsubscribe_token_always_available(self, app, newsletter_manager, email, frequency):
         """Property: Every subscription must have a valid unsubscribe token."""
         with app.app_context():
@@ -352,7 +352,7 @@ class TestNewsletterUnsubscribeAvailability:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=15, deadline=5000)
+    @settings(max_examples=15, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_unsubscribe_workflow(self, app, newsletter_manager, email, frequency):
         """Property: Unsubscribe must properly deactivate subscription."""
         with app.app_context():
@@ -385,7 +385,7 @@ class TestNewsletterUnsubscribeAvailability:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=10, deadline=5000)
+    @settings(max_examples=10, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_unsubscribe_unconfirmed_subscription(self, app, newsletter_manager, email, frequency):
         """Property: Unsubscribing unconfirmed subscription must delete the record."""
         with app.app_context():
@@ -416,7 +416,7 @@ class TestNewsletterServiceIntegration:
         email=email_strategy,
         frequency=frequency_strategy
     )
-    @settings(max_examples=15, deadline=5000)
+    @settings(max_examples=15, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_subscription_stats_accuracy(self, app, newsletter_manager, email, frequency):
         """Property: Subscription statistics must accurately reflect database state."""
         with app.app_context():
@@ -451,7 +451,7 @@ class TestNewsletterServiceIntegration:
         emails=st.lists(email_strategy, min_size=2, max_size=5, unique=True),
         frequency=frequency_strategy
     )
-    @settings(max_examples=10, deadline=5000)
+    @settings(max_examples=10, deadline=5000, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_bulk_subscription_stats(self, app, newsletter_manager, emails, frequency):
         """Property: Statistics must remain accurate with multiple subscriptions."""
         with app.app_context():

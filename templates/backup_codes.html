@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Backup Codes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h3>Two-Factor Authentication Enabled</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <strong>Important:</strong> Save these backup codes in a secure location. Each code can only be used once.
+                    </div>
+                    
+                    <p>If you lose access to your authenticator app, you can use these backup codes to log in:</p>
+                    
+                    <div class="card bg-light my-4">
+                        <div class="card-body">
+                            <div class="row">
+                                {% for code in backup_codes %}
+                                <div class="col-md-6 mb-2">
+                                    <code class="fs-5">{{ code }}</code>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>Tips:</strong>
+                        <ul class="mb-0">
+                            <li>Print these codes and store them in a safe place</li>
+                            <li>Each code can only be used once</li>
+                            <li>You can regenerate new codes at any time from your dashboard</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Continue to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

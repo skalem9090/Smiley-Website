@@ -30,9 +30,12 @@ class SearchEngine:
         self.max_autocomplete_suggestions = app.config.get('MAX_AUTOCOMPLETE_SUGGESTIONS', 5)
         self.search_excerpt_length = app.config.get('SEARCH_EXCERPT_LENGTH', 200)
     
-    def create_search_index(self):
+    def create_search_index(self, populate=True):
         """
         Create FTS5 virtual table for full-text search indexing.
+        
+        Args:
+            populate: Whether to populate the index with existing posts (default True)
         
         This creates a virtual table that indexes post titles, content, summaries,
         categories, and tags for fast full-text search.
@@ -55,8 +58,9 @@ class SearchEngine:
             # Create triggers to keep FTS5 table in sync with posts table
             self._create_fts_triggers()
             
-            # Populate existing posts into the search index
-            self._populate_search_index()
+            # Populate existing posts into the search index only if requested
+            if populate:
+                self._populate_search_index()
             
             db.session.commit()
             
@@ -194,7 +198,7 @@ class SearchEngine:
         clean_text = html.unescape(clean_text)
         
         # Normalize whitespace
-        clean_text = re.sub(r'\\s+', ' ', clean_text).strip()
+        clean_text = re.sub(r'\s+', ' ', clean_text).strip()
         
         return clean_text
     
@@ -329,16 +333,28 @@ class SearchEngine:
         if not query:
             return ""
         
-        # Remove special FTS5 characters that could cause syntax errors
-        # Keep basic operators like AND, OR, NOT, quotes, and wildcards
-        sanitized = re.sub(r'[^\\w\\s"*-]', ' ', query)
+        # For FTS5, hyphens and other special characters can cause issues
+        # The safest approach is to wrap queries with special characters in quotes
+        # Check if query contains problematic characters
+        if re.search(r'[-*"()]', query):
+            # Escape any quotes in the query and wrap in quotes
+            escaped_query = query.replace('"', '""')
+            return f'"{escaped_query}"'
+        
+        # Check if query is all digits - wrap in quotes for exact match
+        if query.isdigit():
+            return f'"{query}"'
+        
+        # Remove other special FTS5 characters that could cause syntax errors
+        sanitized = re.sub(r'[^\w\s]', ' ', query)
         
         # Normalize whitespace
-        sanitized = re.sub(r'\\s+', ' ', sanitized).strip()
+        sanitized = re.sub(r'\s+', ' ', sanitized).strip()
         
-        # If query is empty after sanitization, return original
+        # If query is empty after sanitization, wrap original in quotes
         if not sanitized:
-            return f'"{query}"'  # Wrap in quotes for phrase search
+            escaped_query = query.replace('"', '""')
+            return f'"{escaped_query}"'
         
         return sanitized
     

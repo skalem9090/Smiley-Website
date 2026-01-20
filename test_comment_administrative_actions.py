@@ -10,8 +10,9 @@ should be able to approve, reject, or delete it through the dashboard.
 
 import pytest
 import uuid
+import re
 from datetime import datetime, timezone
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from hypothesis.strategies import composite
 
 from flask import Flask
@@ -25,24 +26,32 @@ def valid_comment_data(draw):
     """Generate valid comment data for testing."""
     author_name = draw(st.text(min_size=1, max_size=100).filter(lambda x: x.strip()))
     
-    # Generate valid email
+    # Generate valid email with only ASCII alphanumeric characters
+    # Mix letters and numbers to avoid spam detection (no 5+ consecutive numbers)
     local_part = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
-        min_size=1, max_size=20
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+        min_size=3, max_size=20
     ))
     domain = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
-        min_size=1, max_size=20
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+        min_size=3, max_size=20
     ))
     tld = draw(st.sampled_from(['com', 'org', 'net', 'edu', 'gov']))
     author_email = f"{local_part}@{domain}.{tld}".lower()
     
+    # Avoid emails with 5+ consecutive numbers (spam detection)
+    assume(not re.search(r'[0-9]{5,}', author_email))
+    
     content = draw(st.text(min_size=1, max_size=2000).filter(lambda x: x.strip()))
+    
+    # Avoid content with repeated characters (5+ times) - spam detection
+    assume(not re.search(r'(.)\1{4,}', content))
     
     # Ensure all fields are non-empty after stripping
     assume(len(author_name) > 0)
     assume(len(content) > 0)
-    assume('@' in author_email and '.' in author_email)
+    assume(len(local_part) >= 3)
+    assume(len(domain) >= 3)
     
     return {
         'author_name': author_name,
@@ -87,10 +96,15 @@ class TestCommentAdministrativeActions:
             db.session.add(test_post)
             db.session.commit()
             
-        return app, test_post.id, admin_user1.id, admin_user2.id
+            # Store IDs before leaving context
+            post_id = test_post.id
+            admin1_id = admin_user1.id
+            admin2_id = admin_user2.id
+            
+        return app, post_id, admin1_id, admin2_id
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_approval_administrative_action(self, comment_data):
         """
         **Property 19: Comment Administrative Actions (Approval)**
@@ -141,7 +155,7 @@ class TestCommentAdministrativeActions:
             assert comment not in pending_comments_after, "Approved comment should be removed from moderation queue"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_rejection_administrative_action(self, comment_data):
         """
         **Property 19: Comment Administrative Actions (Rejection)**
@@ -189,7 +203,7 @@ class TestCommentAdministrativeActions:
             assert comment not in pending_comments, "Rejected comment should not appear in moderation queue"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_deletion_administrative_action(self, comment_data):
         """
         **Property 19: Comment Administrative Actions (Deletion)**
@@ -233,7 +247,7 @@ class TestCommentAdministrativeActions:
                 "Deleted comment should not appear in pending list"
     
     @given(st.lists(valid_comment_data(), min_size=3, max_size=6))
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_bulk_administrative_actions(self, comments_data):
         """
         **Property 19: Comment Administrative Actions (Bulk Operations)**
@@ -312,7 +326,7 @@ class TestCommentAdministrativeActions:
             assert len(pending_comments_after) == 0, "Moderation queue should be empty after bulk operations"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_administrative_action_authorization(self, comment_data):
         """
         **Property 19: Comment Administrative Actions (Authorization)**
@@ -353,8 +367,12 @@ class TestCommentAdministrativeActions:
             assert comment.approved_by == admin1_id, "Comment should record correct administrator ID"
             assert comment.approved_at is not None, "Comment should have action timestamp"
             
-            # Verify timestamp is reasonable
-            assert action_time_before <= comment.approved_at <= action_time_after, \
+            # Verify timestamp is reasonable (convert to timezone-aware if needed)
+            approved_at = comment.approved_at
+            if approved_at.tzinfo is None:
+                approved_at = approved_at.replace(tzinfo=timezone.utc)
+            
+            assert action_time_before <= approved_at <= action_time_after, \
                 "Action timestamp should be within reasonable time range"
             
             # Verify original creation time is preserved

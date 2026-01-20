@@ -11,7 +11,7 @@ notification and remain invisible until approved.
 import pytest
 import uuid
 from datetime import datetime, timezone
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from hypothesis.strategies import composite
 
 from flask import Flask
@@ -27,11 +27,11 @@ def valid_comment_data(draw):
     
     # Generate valid email
     local_part = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     domain = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     tld = draw(st.sampled_from(['com', 'org', 'net', 'edu', 'gov']))
@@ -83,10 +83,14 @@ class TestCommentModerationWorkflow:
             db.session.add(test_post)
             db.session.commit()
             
-        return app, test_post.id, admin_user.id
+            # Store IDs before leaving context
+            post_id = test_post.id
+            admin_id = admin_user.id
+            
+        return app, post_id, admin_id
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_invisible_until_approved(self, comment_data):
         """
         **Property 16: Comment Moderation Workflow (Visibility Control)**
@@ -125,7 +129,7 @@ class TestCommentModerationWorkflow:
             assert comment.approved_by is None, "Comment should not have moderator ID initially"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_approval_workflow(self, comment_data):
         """
         **Property 16: Comment Moderation Workflow (Approval Process)**
@@ -172,7 +176,7 @@ class TestCommentModerationWorkflow:
             assert comment not in pending_comments, "Approved comment should not appear in moderation queue"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_rejection_workflow(self, comment_data):
         """
         **Property 16: Comment Moderation Workflow (Rejection Process)**
@@ -219,7 +223,7 @@ class TestCommentModerationWorkflow:
             assert comment not in pending_comments, "Rejected comment should not appear in pending queue"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_moderation_state_persistence(self, comment_data):
         """
         **Property 16: Comment Moderation Workflow (State Persistence)**
@@ -257,7 +261,7 @@ class TestCommentModerationWorkflow:
             assert not fresh_comment.is_spam, "Spam flag should be correctly set"
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_bulk_moderation_workflow(self, comment_data):
         """
         **Property 16: Comment Moderation Workflow (Bulk Operations)**

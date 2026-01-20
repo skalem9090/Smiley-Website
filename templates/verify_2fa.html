@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Two-Factor Authentication - Smileys Blog{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Two-Factor Authentication</h4>
+                </div>
+                <div class="card-body">
+                    <p>Welcome, <strong>{{ username }}</strong>!</p>
+                    <p>Please enter your 6-digit authentication code from your authenticator app.</p>
+                    
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="form-group mb-3">
+                            <label for="totp_code">Authentication Code</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="totp_code" 
+                                   name="totp_code" 
+                                   placeholder="000000" 
+                                   maxlength="16"
+                                   pattern="[0-9A-Za-z]{6,16}"
+                                   required 
+                                   autofocus>
+                            <small class="form-text text-muted">
+                                Enter the 6-digit code from your authenticator app, or use a backup code.
+                            </small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block">Verify</button>
+                    </form>
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('login') }}" class="text-muted">← Back to login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

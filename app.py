@@ -14,7 +14,7 @@ except ImportError:
     print("Warning: python-dotenv not found. Using system environment variables only.")
     pass
 
-from models import db, User, Post, Tag, AuthorProfile, NewsletterSubscription, Comment, SearchQuery, Image
+from models import db, User, Post, Tag, AuthorProfile, NewsletterSubscription, Comment, SearchQuery, Image, LoginAttempt, AuditLog
 from forms import LoginForm, PostForm, ImageUploadForm, CommentForm, CommentModerationForm, BulkCommentModerationForm
 from image_handler import ImageHandler
 from schedule_manager import ScheduleManager
@@ -22,6 +22,12 @@ from about_page_manager import AboutPageManager
 from feed_generator import FeedGenerator
 from comment_manager import CommentManager
 from seo_manager import SEOManager
+from account_lockout_manager import AccountLockoutManager
+from audit_logger import AuditLogger
+from two_factor_auth_manager import TwoFactorAuthManager
+from session_manager import SessionManager
+from security_config import LockoutConfig, SessionConfig
+from password_validator import PasswordValidator, PasswordConfig
 
 
 def get_content_sanitization_config():
@@ -80,14 +86,18 @@ def create_app():
     # Ensure database tables exist and optionally create initial admin
     with app.app_context():
         db.create_all()
-        if User.query.count() == 0:
-            admin_user = os.environ.get('ADMIN_USER')
-            admin_pass = os.environ.get('ADMIN_PASSWORD')
-            if admin_user and admin_pass:
-                u = User(username=admin_user, is_admin=True)
-                u.set_password(admin_pass)
-                db.session.add(u)
-                db.session.commit()
+        try:
+            if User.query.count() == 0:
+                admin_user = os.environ.get('ADMIN_USER')
+                admin_pass = os.environ.get('ADMIN_PASSWORD')
+                if admin_user and admin_pass:
+                    u = User(username=admin_user, is_admin=True)
+                    u.set_password(admin_pass)
+                    db.session.add(u)
+                    db.session.commit()
+        except Exception as e:
+            # Database might not be fully migrated yet
+            app.logger.warning(f"Could not check for initial admin user: {str(e)}")
         
         # Initialize search engine
         from search_engine import SearchEngine
@@ -105,6 +115,42 @@ def create_app():
     # Initialize SEO Manager
     seo_manager = SEOManager(app)
     
+    # Initialize security components
+    lockout_config = LockoutConfig.from_env()
+    lockout_manager = AccountLockoutManager(db, lockout_config)
+    audit_logger = AuditLogger(db)
+    two_factor_manager = TwoFactorAuthManager(db)
+    
+    # Initialize password validator
+    password_config = PasswordConfig.from_env()
+    password_validator = PasswordValidator(password_config)
+    
+    # Initialize session manager (registers before_request handler automatically)
+    session_config = SessionConfig.from_env()
+    session_manager = SessionManager(app, session_config)
+    
+    # Register error handlers for security errors
+    from security_errors import SecurityError, RateLimitExceeded, AccountLocked, InvalidTOTP, SessionExpired, PasswordValidationError
+    
+    @app.errorhandler(SecurityError)
+    def handle_security_error(error):
+        """Handle all security-related errors."""
+        # Flash the error message to the user
+        flash(error.message, 'danger')
+        
+        # For rate limit errors, include retry-after header
+        if isinstance(error, RateLimitExceeded):
+            response = redirect(request.referrer or url_for('index'))
+            response.headers['Retry-After'] = str(error.retry_after)
+            return response, error.status_code
+        
+        # For session expired errors, redirect to login
+        if isinstance(error, SessionExpired):
+            return redirect(url_for('login')), error.status_code
+        
+        # For other errors, redirect back or to index
+        return redirect(request.referrer or url_for('index')), error.status_code
+    
     # Helper function to invalidate sitemap cache when content changes
     def invalidate_sitemap_cache():
         """Invalidate sitemap cache when content changes."""
@@ -119,6 +165,17 @@ def create_app():
         if not text:
             return text
         return text.replace('\n', '<br>\n')
+    
+    @app.template_filter('from_json')
+    def from_json_filter(text):
+        """Parse JSON string to Python object."""
+        if not text:
+            return []
+        try:
+            import json
+            return json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            return []
 
     @app.route('/')
     def index():
@@ -142,26 +199,658 @@ def create_app():
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
+        from security_errors import AccountLocked
+        
         form = LoginForm()
         if form.validate_on_submit():
             username = form.username.data.strip()
             password = form.password.data
             user = User.query.filter_by(username=username).first()
+            
+            # Get client IP address
+            ip_address = request.remote_addr or 'unknown'
+            
+            # Check if account is locked
+            if user and lockout_manager.is_locked(user):
+                unlock_time = lockout_manager.get_unlock_time(user)
+                if unlock_time:
+                    minutes = int((unlock_time - datetime.now(timezone.utc)).total_seconds() / 60)
+                    
+                    # Log failed attempt due to lockout
+                    audit_logger.log_login_attempt(
+                        username=username,
+                        ip_address=ip_address,
+                        success=False,
+                        failure_reason='Account locked',
+                        user_id=user.id if user else None
+                    )
+                    
+                    # Raise custom error
+                    raise AccountLocked(minutes)
+                else:
+                    flash('Account is locked. Please contact support.', 'danger')
+                    return render_template('login.html', form=form)
+            
+            # Authenticate user
             if user and user.check_password(password):
                 if not user.is_admin:
                     flash('Unauthorized: developer access only', 'danger')
+                    
+                    # Log failed attempt due to authorization
+                    audit_logger.log_login_attempt(
+                        username=username,
+                        ip_address=ip_address,
+                        success=False,
+                        failure_reason='Not admin',
+                        user_id=user.id
+                    )
                 else:
+                    # Successful login - reset failed attempts
+                    lockout_manager.record_successful_login(user)
+                    
+                    # Update last login timestamp
+                    user.last_login_at = datetime.now(timezone.utc)
+                    db.session.commit()
+                    
+                    # Log successful login
+                    audit_logger.log_login_attempt(
+                        username=username,
+                        ip_address=ip_address,
+                        success=True,
+                        user_id=user.id
+                    )
+                    
+                    # Check if 2FA is enabled
+                    if two_factor_manager.is_enabled(user):
+                        # Store user ID in session for 2FA verification
+                        from flask import session
+                        session['pending_2fa_user_id'] = user.id
+                        session['pending_2fa_username'] = username
+                        return redirect(url_for('verify_2fa'))
+                    
+                    # Create session
                     login_user(user)
+                    session_manager.create_session(user)
+                    
                     return redirect(request.args.get('next') or url_for('index'))
             else:
-                flash('Invalid credentials', 'danger')
+                # Failed login - record attempt
+                if user:
+                    lockout_manager.record_failed_attempt(user, ip_address)
+                    
+                    # Check if account is now locked
+                    if lockout_manager.is_locked(user):
+                        # Log lockout event
+                        audit_logger.log_account_lockout(
+                            user_id=user.id,
+                            username=username,
+                            ip_address=ip_address
+                        )
+                        
+                        unlock_time = lockout_manager.get_unlock_time(user)
+                        if unlock_time:
+                            minutes = int((unlock_time - datetime.now(timezone.utc)).total_seconds() / 60)
+                            
+                            # Raise custom error
+                            raise AccountLocked(minutes)
+                        else:
+                            flash('Account is locked. Please contact support.', 'danger')
+                    else:
+                        flash('Invalid credentials', 'danger')
+                    
+                    # Log failed attempt
+                    audit_logger.log_login_attempt(
+                        username=username,
+                        ip_address=ip_address,
+                        success=False,
+                        failure_reason='Invalid password',
+                        user_id=user.id
+                    )
+                else:
+                    flash('Invalid credentials', 'danger')
+                    
+                    # Log failed attempt for non-existent user
+                    audit_logger.log_login_attempt(
+                        username=username,
+                        ip_address=ip_address,
+                        success=False,
+                        failure_reason='User not found',
+                        user_id=None
+                    )
+        
         return render_template('login.html', form=form)
+
+    @app.route('/verify-2fa', methods=['GET', 'POST'])
+    def verify_2fa():
+        """Verify 2FA TOTP code after successful password authentication."""
+        from flask import session
+        from security_errors import InvalidTOTP, AccountLocked, SessionExpired
+        
+        # Check if user is in 2FA verification state
+        if 'pending_2fa_user_id' not in session:
+            raise SessionExpired()
+        
+        user_id = session.get('pending_2fa_user_id')
+        username = session.get('pending_2fa_username', 'Unknown')
+        user = db.session.get(User, user_id)
+        
+        if not user:
+            session.pop('pending_2fa_user_id', None)
+            session.pop('pending_2fa_username', None)
+            raise SessionExpired()
+        
+        if request.method == 'POST':
+            totp_code = request.form.get('totp_code', '').strip()
+            ip_address = request.remote_addr or 'unknown'
+            
+            # Verify TOTP code
+            if two_factor_manager.verify_totp(user, totp_code):
+                # Successful 2FA verification
+                session.pop('pending_2fa_user_id', None)
+                session.pop('pending_2fa_username', None)
+                
+                login_user(user)
+                session_manager.create_session(user)
+                
+                flash('Successfully logged in with 2FA.', 'success')
+                return redirect(request.args.get('next') or url_for('index'))
+            else:
+                # Check if it's a backup code
+                if two_factor_manager.verify_backup_code(user, totp_code):
+                    # Successful backup code verification
+                    session.pop('pending_2fa_user_id', None)
+                    session.pop('pending_2fa_username', None)
+                    
+                    login_user(user)
+                    session_manager.create_session(user)
+                    
+                    flash('Successfully logged in with backup code. Please generate new backup codes.', 'warning')
+                    return redirect(request.args.get('next') or url_for('index'))
+                else:
+                    # Invalid TOTP code - record as failed attempt
+                    lockout_manager.record_failed_attempt(user, ip_address)
+                    
+                    # Check if account is now locked
+                    if lockout_manager.is_locked(user):
+                        # Log lockout event
+                        audit_logger.log_account_lockout(
+                            user_id=user.id,
+                            username=username,
+                            ip_address=ip_address
+                        )
+                        
+                        session.pop('pending_2fa_user_id', None)
+                        session.pop('pending_2fa_username', None)
+                        
+                        unlock_time = lockout_manager.get_unlock_time(user)
+                        if unlock_time:
+                            minutes = int((unlock_time - datetime.now(timezone.utc)).total_seconds() / 60)
+                            raise AccountLocked(minutes)
+                        else:
+                            flash('Account is locked. Please contact support.', 'danger')
+                            return redirect(url_for('login'))
+                    
+                    # Raise custom error for invalid TOTP
+                    raise InvalidTOTP()
+        
+        return render_template('verify_2fa.html', username=username)
 
     @app.route('/logout')
     @login_required
     def logout():
+        # Invalidate session
+        session_manager.invalidate_session()
         logout_user()
         return redirect(url_for('index'))
+
+    @app.route('/admin/security/2fa/setup', methods=['GET', 'POST'])
+    @login_required
+    def setup_2fa():
+        """Setup two-factor authentication for the current user."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        # Check if 2FA is already enabled
+        if two_factor_manager.is_enabled(current_user):
+            flash('Two-factor authentication is already enabled for your account.', 'info')
+            return redirect(url_for('dashboard'))
+        
+        if request.method == 'POST':
+            totp_code = request.form.get('totp_code', '').strip()
+            
+            if not totp_code:
+                flash('Please enter the verification code from your authenticator app.', 'danger')
+                return redirect(url_for('setup_2fa'))
+            
+            # Enable 2FA and get backup codes
+            success, backup_codes = two_factor_manager.enable_2fa(current_user, totp_code)
+            
+            if success:
+                # Log 2FA enable event
+                audit_logger.log_2fa_change(
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    enabled=True
+                )
+                
+                flash('Two-factor authentication has been enabled successfully!', 'success')
+                
+                # Store backup codes in session to display them once
+                from flask import session
+                session['new_backup_codes'] = backup_codes
+                
+                return redirect(url_for('show_backup_codes'))
+            else:
+                flash('Invalid verification code. Please try again.', 'danger')
+                return redirect(url_for('setup_2fa'))
+        
+        # GET request - generate secret and show QR code
+        secret = two_factor_manager.generate_secret(current_user)
+        provisioning_uri = two_factor_manager.get_provisioning_uri(
+            current_user,
+            issuer=os.environ.get('APP_NAME', 'Blog App')
+        )
+        
+        # Generate QR code
+        import qrcode
+        import io
+        import base64
+        
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(provisioning_uri)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        qr_code_data = base64.b64encode(buffer.getvalue()).decode()
+        
+        return render_template('setup_2fa.html',
+                             secret=secret,
+                             qr_code_data=qr_code_data,
+                             provisioning_uri=provisioning_uri)
+    
+    @app.route('/admin/security/2fa/backup-codes')
+    @login_required
+    def show_backup_codes():
+        """Display backup codes after 2FA setup."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        from flask import session
+        backup_codes = session.pop('new_backup_codes', None)
+        
+        if not backup_codes:
+            flash('No backup codes to display.', 'warning')
+            return redirect(url_for('dashboard'))
+        
+        return render_template('backup_codes.html', backup_codes=backup_codes)
+    
+    @app.route('/admin/security/2fa/disable', methods=['GET', 'POST'])
+    @login_required
+    def disable_2fa():
+        """Disable two-factor authentication for the current user."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        # Check if 2FA is enabled
+        if not two_factor_manager.is_enabled(current_user):
+            flash('Two-factor authentication is not enabled for your account.', 'info')
+            return redirect(url_for('dashboard'))
+        
+        if request.method == 'POST':
+            password = request.form.get('password', '').strip()
+            totp_code = request.form.get('totp_code', '').strip()
+            
+            if not password or not totp_code:
+                flash('Please provide both your password and verification code.', 'danger')
+                return render_template('disable_2fa.html')
+            
+            # Disable 2FA
+            success = two_factor_manager.disable_2fa(current_user, password, totp_code)
+            
+            if success:
+                # Log 2FA disable event
+                audit_logger.log_2fa_change(
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    enabled=False
+                )
+                
+                flash('Two-factor authentication has been disabled.', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Invalid password or verification code. Please try again.', 'danger')
+                return render_template('disable_2fa.html')
+        
+        return render_template('disable_2fa.html')
+    
+    @app.route('/admin/security/2fa/regenerate-codes', methods=['GET', 'POST'])
+    @login_required
+    def regenerate_backup_codes():
+        """Regenerate backup codes for the current user."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        # Check if 2FA is enabled
+        if not two_factor_manager.is_enabled(current_user):
+            flash('Two-factor authentication is not enabled for your account.', 'info')
+            return redirect(url_for('dashboard'))
+        
+        if request.method == 'POST':
+            # Generate new backup codes
+            backup_codes = two_factor_manager.generate_backup_codes()
+            
+            # Update user's backup codes
+            two_factor_auth = current_user.two_factor_auth
+            if two_factor_auth:
+                import json
+                from werkzeug.security import generate_password_hash
+                
+                # Hash the backup codes before storing
+                hashed_codes = [generate_password_hash(code) for code in backup_codes]
+                two_factor_auth.backup_codes = json.dumps(hashed_codes)
+                db.session.commit()
+                
+                flash('New backup codes have been generated.', 'success')
+                
+                # Store backup codes in session to display them once
+                from flask import session
+                session['new_backup_codes'] = backup_codes
+                
+                return redirect(url_for('show_backup_codes'))
+            else:
+                flash('Error regenerating backup codes.', 'danger')
+                return redirect(url_for('dashboard'))
+        
+        return render_template('regenerate_backup_codes.html')
+
+    @app.route('/admin/security/change-password', methods=['GET', 'POST'])
+    @login_required
+    def change_password():
+        """Change password for the current user with validation."""
+        from security_errors import PasswordValidationError
+        
+        if not current_user.is_admin:
+            abort(403)
+        
+        if request.method == 'POST':
+            current_password = request.form.get('current_password', '').strip()
+            new_password = request.form.get('new_password', '').strip()
+            confirm_password = request.form.get('confirm_password', '').strip()
+            
+            # Validate current password
+            if not current_user.check_password(current_password):
+                flash('Current password is incorrect.', 'danger')
+                return render_template('change_password.html',
+                                     password_requirements=password_validator.get_requirements_text())
+            
+            # Validate new password matches confirmation
+            if new_password != confirm_password:
+                flash('New passwords do not match.', 'danger')
+                return render_template('change_password.html',
+                                     password_requirements=password_validator.get_requirements_text())
+            
+            # Validate new password complexity
+            is_valid, errors = password_validator.validate(new_password)
+            
+            if not is_valid:
+                # Raise custom error with all validation errors
+                raise PasswordValidationError(errors)
+            
+            # Update password
+            current_user.set_password(new_password)
+            db.session.commit()
+            
+            # Log password change event
+            ip_address = request.remote_addr or 'unknown'
+            audit_logger.log_admin_action(
+                user_id=current_user.id,
+                username=current_user.username,
+                action_type='password_change',
+                details={'message': 'Password changed successfully'},
+                ip_address=ip_address
+            )
+            
+            flash('Password changed successfully.', 'success')
+            return redirect(url_for('dashboard'))
+        
+        return render_template('change_password.html',
+                             password_requirements=password_validator.get_requirements_text())
+
+    @app.route('/admin/security/audit-logs')
+    @login_required
+    def security_audit_logs():
+        """Display audit logs with filtering and pagination."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        offset = (page - 1) * per_page
+        
+        # Get filter parameters
+        filters = {}
+        user_id_filter = request.args.get('user_id', type=int)
+        action_type_filter = request.args.get('action_type', '').strip()
+        start_date_str = request.args.get('start_date', '').strip()
+        end_date_str = request.args.get('end_date', '').strip()
+        
+        if user_id_filter:
+            filters['user_id'] = user_id_filter
+        
+        if action_type_filter:
+            filters['action_type'] = action_type_filter
+        
+        if start_date_str:
+            try:
+                from datetime import datetime
+                filters['start_date'] = datetime.strptime(start_date_str, '%Y-%m-%d')
+            except ValueError:
+                pass
+        
+        if end_date_str:
+            try:
+                from datetime import datetime
+                filters['end_date'] = datetime.strptime(end_date_str, '%Y-%m-%d')
+            except ValueError:
+                pass
+        
+        # Get audit logs
+        logs = audit_logger.get_recent_logs(limit=per_page, offset=offset, filters=filters if filters else None)
+        
+        # Get total count for pagination (approximate)
+        total_logs = AuditLog.query.count()
+        total_pages = (total_logs + per_page - 1) // per_page
+        
+        # Get all users for filter dropdown
+        all_users = User.query.all()
+        
+        # Get all action types for filter dropdown
+        action_types = [
+            'post_create', 'post_update', 'post_delete',
+            'media_upload', 'media_delete', 'settings_change',
+            'account_lockout', '2fa_enable', '2fa_disable', 'password_change'
+        ]
+        
+        return render_template('security_audit_logs.html',
+                             logs=logs,
+                             page=page,
+                             total_pages=total_pages,
+                             all_users=all_users,
+                             action_types=action_types,
+                             current_filters=filters)
+
+    @app.route('/admin/security/login-attempts')
+    @login_required
+    def security_login_attempts():
+        """Display login attempts with filtering and pagination."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        offset = (page - 1) * per_page
+        
+        # Get filter parameters
+        filters = {}
+        username_filter = request.args.get('username', '').strip()
+        success_filter = request.args.get('success', '').strip()
+        start_date_str = request.args.get('start_date', '').strip()
+        end_date_str = request.args.get('end_date', '').strip()
+        
+        if username_filter:
+            filters['username'] = username_filter
+        
+        if success_filter:
+            filters['success'] = success_filter == 'true'
+        
+        if start_date_str:
+            try:
+                from datetime import datetime
+                filters['start_date'] = datetime.strptime(start_date_str, '%Y-%m-%d')
+            except ValueError:
+                pass
+        
+        if end_date_str:
+            try:
+                from datetime import datetime
+                filters['end_date'] = datetime.strptime(end_date_str, '%Y-%m-%d')
+            except ValueError:
+                pass
+        
+        # Get login attempts
+        attempts = audit_logger.get_login_attempts(limit=per_page, offset=offset, filters=filters if filters else None)
+        
+        # Get total count for pagination (approximate)
+        total_attempts = LoginAttempt.query.count()
+        total_pages = (total_attempts + per_page - 1) // per_page
+        
+        return render_template('security_login_attempts.html',
+                             attempts=attempts,
+                             page=page,
+                             total_pages=total_pages,
+                             current_filters=filters)
+
+    @app.route('/admin/security/export')
+    @login_required
+    def security_export_logs():
+        """Export security logs as CSV."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        import csv
+        from io import StringIO
+        from flask import make_response
+        
+        log_type = request.args.get('log_type', 'audit')
+        
+        # Get filter parameters (same as display pages)
+        filters = {}
+        
+        if log_type == 'audit':
+            user_id_filter = request.args.get('user_id', type=int)
+            action_type_filter = request.args.get('action_type', '').strip()
+            start_date_str = request.args.get('start_date', '').strip()
+            end_date_str = request.args.get('end_date', '').strip()
+            
+            if user_id_filter:
+                filters['user_id'] = user_id_filter
+            
+            if action_type_filter:
+                filters['action_type'] = action_type_filter
+            
+            if start_date_str:
+                try:
+                    from datetime import datetime
+                    filters['start_date'] = datetime.strptime(start_date_str, '%Y-%m-%d')
+                except ValueError:
+                    pass
+            
+            if end_date_str:
+                try:
+                    from datetime import datetime
+                    filters['end_date'] = datetime.strptime(end_date_str, '%Y-%m-%d')
+                except ValueError:
+                    pass
+            
+            # Get all audit logs (no limit for export)
+            logs = audit_logger.get_recent_logs(limit=10000, offset=0, filters=filters if filters else None)
+            
+            # Create CSV
+            si = StringIO()
+            writer = csv.writer(si)
+            writer.writerow(['Timestamp', 'User ID', 'Username', 'Action Type', 'Details', 'IP Address'])
+            
+            for log in logs:
+                writer.writerow([
+                    log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                    log.user_id,
+                    log.username,
+                    log.action_type,
+                    log.details or '',
+                    log.ip_address
+                ])
+            
+            output = make_response(si.getvalue())
+            output.headers["Content-Disposition"] = "attachment; filename=audit_logs.csv"
+            output.headers["Content-type"] = "text/csv"
+            return output
+            
+        elif log_type == 'login':
+            username_filter = request.args.get('username', '').strip()
+            success_filter = request.args.get('success', '').strip()
+            start_date_str = request.args.get('start_date', '').strip()
+            end_date_str = request.args.get('end_date', '').strip()
+            
+            if username_filter:
+                filters['username'] = username_filter
+            
+            if success_filter:
+                filters['success'] = success_filter == 'true'
+            
+            if start_date_str:
+                try:
+                    from datetime import datetime
+                    filters['start_date'] = datetime.strptime(start_date_str, '%Y-%m-%d')
+                except ValueError:
+                    pass
+            
+            if end_date_str:
+                try:
+                    from datetime import datetime
+                    filters['end_date'] = datetime.strptime(end_date_str, '%Y-%m-%d')
+                except ValueError:
+                    pass
+            
+            # Get all login attempts (no limit for export)
+            attempts = audit_logger.get_login_attempts(limit=10000, offset=0, filters=filters if filters else None)
+            
+            # Create CSV
+            si = StringIO()
+            writer = csv.writer(si)
+            writer.writerow(['Timestamp', 'User ID', 'Username', 'IP Address', 'Success', 'Failure Reason'])
+            
+            for attempt in attempts:
+                writer.writerow([
+                    attempt.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                    attempt.user_id or '',
+                    attempt.username,
+                    attempt.ip_address,
+                    'Yes' if attempt.success else 'No',
+                    attempt.failure_reason or ''
+                ])
+            
+            output = make_response(si.getvalue())
+            output.headers["Content-Disposition"] = "attachment; filename=login_attempts.csv"
+            output.headers["Content-type"] = "text/csv"
+            return output
+        
+        else:
+            abort(400)
 
     @app.route('/about')
     def about():
@@ -222,6 +911,21 @@ def create_app():
                     tags=tags
                 )
                 
+                # Log post creation
+                ip_address = request.remote_addr or 'unknown'
+                audit_logger.log_admin_action(
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    action_type='post_create',
+                    details={
+                        'post_id': post.id,
+                        'title': post.title,
+                        'status': post.status,
+                        'category': post.category
+                    },
+                    ip_address=ip_address
+                )
+                
                 # Handle image uploads
                 image_handler = ImageHandler()
                 uploaded_images = []
@@ -256,6 +960,16 @@ def create_app():
         # Get organized posts for dashboard display
         organized_posts = PostManager.get_posts_organized_by_status()
         return render_template('dashboard.html', form=form, posts=organized_posts)
+
+
+    @app.route('/settings')
+    @login_required
+    def settings():
+        """User settings page with security features."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        return render_template('settings.html')
 
 
     @app.route('/dashboard/edit/<int:post_id>', methods=['GET', 'POST'])
@@ -304,6 +1018,21 @@ def create_app():
                 if not updated_post:
                     flash('Post not found.', 'danger')
                     return redirect(url_for('dashboard'))
+                
+                # Log post update
+                ip_address = request.remote_addr or 'unknown'
+                audit_logger.log_admin_action(
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    action_type='post_update',
+                    details={
+                        'post_id': updated_post.id,
+                        'title': updated_post.title,
+                        'status': updated_post.status,
+                        'category': updated_post.category
+                    },
+                    ip_address=ip_address
+                )
                 
                 # Handle new image uploads
                 image_handler = ImageHandler()
@@ -363,6 +1092,11 @@ def create_app():
         if not current_user.is_admin:
             abort(403)
         
+        # Store post details for audit log before deletion
+        post_title = post.title
+        post_status = post.status
+        post_category = post.category
+        
         # Use no_autoflush to prevent premature flushes
         with db.session.no_autoflush:
             # First delete all comments associated with this post
@@ -375,6 +1109,22 @@ def create_app():
         
         try:
             db.session.commit()
+            
+            # Log post deletion
+            ip_address = request.remote_addr or 'unknown'
+            audit_logger.log_admin_action(
+                user_id=current_user.id,
+                username=current_user.username,
+                action_type='post_delete',
+                details={
+                    'post_id': post_id,
+                    'title': post_title,
+                    'status': post_status,
+                    'category': post_category
+                },
+                ip_address=ip_address
+            )
+            
             flash('Post and associated comments deleted successfully', 'success')
         except Exception as e:
             db.session.rollback()
@@ -571,6 +1321,20 @@ def create_app():
             success, message, image_record = image_handler.save_image(file)
             
             if success:
+                # Log media upload
+                ip_address = request.remote_addr or 'unknown'
+                audit_logger.log_admin_action(
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    action_type='media_upload',
+                    details={
+                        'image_id': image_record.id,
+                        'filename': image_record.filename,
+                        'source': 'editor'
+                    },
+                    ip_address=ip_address
+                )
+                
                 return jsonify({
                     'success': True,
                     'url': f'/images/{image_record.filename}',
@@ -945,6 +1709,19 @@ def create_app():
             success, message, image_record = image_handler.save_image(form.image.data)
             
             if success:
+                # Log media upload
+                ip_address = request.remote_addr or 'unknown'
+                audit_logger.log_admin_action(
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    action_type='media_upload',
+                    details={
+                        'image_id': image_record.id,
+                        'filename': image_record.filename
+                    },
+                    ip_address=ip_address
+                )
+                
                 return jsonify({
                     'success': True,
                     'message': message,
@@ -1179,10 +1956,28 @@ def create_app():
     @login_required
     def delete_image(image_id):
         """Delete an uploaded image."""
+        # Get image details before deletion for audit log
+        from models import Image as ImageModel
+        image = ImageModel.query.get(image_id)
+        image_filename = image.filename if image else 'unknown'
+        
         image_handler = ImageHandler()
         success, message = image_handler.delete_image(image_id)
         
         if success:
+            # Log media deletion
+            ip_address = request.remote_addr or 'unknown'
+            audit_logger.log_admin_action(
+                user_id=current_user.id,
+                username=current_user.username,
+                action_type='media_delete',
+                details={
+                    'image_id': image_id,
+                    'filename': image_filename
+                },
+                ip_address=ip_address
+            )
+            
             return jsonify({
                 'success': True,
                 'message': message
@@ -1853,6 +2648,76 @@ def create_app():
             response.headers['Content-Disposition'] = f'attachment; filename=analytics_report_{days}days.txt'
         
         return response
+
+    @app.route('/api/security/sessions')
+    @login_required
+    def api_security_sessions():
+        """API endpoint for user sessions."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        # For now, return current session info only
+        # In production, this would query a session store (Redis/Database)
+        from datetime import datetime, timezone
+        
+        current_session_info = {
+            'id': session.get('_id', 'current'),
+            'device': request.user_agent.string[:50] if request.user_agent else 'Unknown Device',
+            'ip_address': request.remote_addr or 'Unknown',
+            'last_activity': session.get('last_activity', datetime.now(timezone.utc).isoformat()),
+            'created_at': session.get('created_at', 'Unknown'),
+            'is_current': True
+        }
+        
+        return jsonify({
+            'success': True,
+            'sessions': [current_session_info],
+            'note': 'Session management requires Redis or database backend for full functionality'
+        })
+
+    @app.route('/api/security/sessions/<session_id>/revoke', methods=['POST'])
+    @login_required
+    def api_revoke_session(session_id):
+        """API endpoint to revoke a session."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        # Session revocation requires a session store backend
+        # For now, return a message indicating this feature needs configuration
+        return jsonify({
+            'success': False,
+            'error': 'Session revocation requires Redis or database session backend',
+            'message': 'Configure a session backend to enable this feature'
+        }), 501  # Not Implemented
+
+    @app.route('/api/security/audit-logs')
+    @login_required
+    def api_security_audit_logs():
+        """API endpoint for audit logs."""
+        if not current_user.is_admin:
+            abort(403)
+        
+        limit = request.args.get('limit', 10, type=int)
+        
+        # Get recent audit logs for current user
+        logs = AuditLog.query.filter_by(user_id=current_user.id)\
+            .order_by(AuditLog.timestamp.desc())\
+            .limit(limit)\
+            .all()
+        
+        formatted_logs = []
+        for log in logs:
+            formatted_logs.append({
+                'action': log.action_type,
+                'details': log.details or '',
+                'timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else 'Unknown',
+                'ip_address': log.ip_address
+            })
+        
+        return jsonify({
+            'success': True,
+            'logs': formatted_logs
+        })
 
     @app.route('/robots.txt')
     def robots_txt():

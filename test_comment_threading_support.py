@@ -11,7 +11,7 @@ maintain proper parent-child relationships and display hierarchically.
 import pytest
 import uuid
 from datetime import datetime, timezone
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from hypothesis.strategies import composite
 
 from flask import Flask
@@ -27,11 +27,11 @@ def valid_comment_data(draw):
     
     # Generate valid email
     local_part = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     domain = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     tld = draw(st.sampled_from(['com', 'org', 'net', 'edu', 'gov']))
@@ -84,13 +84,17 @@ class TestCommentThreadingSupport:
             db.session.add(test_post)
             db.session.commit()
             
-        return app, test_post.id, admin_user.id
+            # Store IDs before leaving context
+            post_id = test_post.id
+            admin_id = admin_user.id
+            
+        return app, post_id, admin_id
     
     @given(
         parent_data=valid_comment_data(),
         reply_data=valid_comment_data()
     )
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_parent_child_relationship(self, parent_data, reply_data):
         """
         **Property 20: Comment Threading Support (Parent-Child Relationships)**
@@ -146,7 +150,7 @@ class TestCommentThreadingSupport:
             assert parent_comment.parent is None, "Parent comment should have no parent relationship"
     
     @given(st.lists(valid_comment_data(), min_size=2, max_size=4))
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_hierarchical_display(self, comments_data):
         """
         **Property 20: Comment Threading Support (Hierarchical Display)**
@@ -216,7 +220,7 @@ class TestCommentThreadingSupport:
         parent_data=valid_comment_data(),
         reply_data=valid_comment_data()
     )
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_threading_disabled_behavior(self, parent_data, reply_data):
         """
         **Property 20: Comment Threading Support (Threading Disabled)**
@@ -276,7 +280,7 @@ class TestCommentThreadingSupport:
         parent_data=valid_comment_data(),
         reply_data=valid_comment_data()
     )
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_reply_to_unapproved_comment_validation(self, parent_data, reply_data):
         """
         **Property 20: Comment Threading Support (Reply Validation)**
@@ -318,7 +322,7 @@ class TestCommentThreadingSupport:
         parent_data=valid_comment_data(),
         reply_data=valid_comment_data()
     )
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_cross_post_reply_validation(self, parent_data, reply_data):
         """
         **Property 20: Comment Threading Support (Cross-Post Validation)**

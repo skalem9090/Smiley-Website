@@ -11,7 +11,7 @@ spam detection filters before entering the moderation queue.
 import pytest
 import uuid
 from datetime import datetime, timezone
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from hypothesis.strategies import composite
 
 from flask import Flask
@@ -92,11 +92,11 @@ def legitimate_comment_data(draw):
     
     # Generate valid email
     local_part = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     domain = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     tld = draw(st.sampled_from(['com', 'org', 'net', 'edu', 'gov']))
@@ -168,10 +168,14 @@ class TestCommentSpamProtection:
             db.session.add(test_post)
             db.session.commit()
             
-        return app, test_post.id, admin_user.id
+            # Store IDs before leaving context
+            post_id = test_post.id
+            admin_id = admin_user.id
+            
+        return app, post_id, admin_id
     
     @given(comment_data=spam_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_spam_detection_triggers(self, comment_data):
         """
         **Property 18: Comment Spam Protection (Spam Detection)**
@@ -221,7 +225,7 @@ class TestCommentSpamProtection:
                 assert comment not in approved_comments, "Spam comment should not appear in approved list"
     
     @given(comment_data=legitimate_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_legitimate_comments_pass_spam_filter(self, comment_data):
         """
         **Property 18: Comment Spam Protection (False Positive Prevention)**
@@ -269,7 +273,7 @@ class TestCommentSpamProtection:
             assert comment not in approved_comments, "Unapproved comment should not appear in approved list"
     
     @given(st.lists(st.one_of(spam_comment_data(), legitimate_comment_data()), min_size=2, max_size=5))
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_mixed_comment_spam_filtering(self, comments_data):
         """
         **Property 18: Comment Spam Protection (Mixed Content Filtering)**
@@ -328,7 +332,7 @@ class TestCommentSpamProtection:
                 assert not comment.is_spam, "Pending comments should not be marked as spam"
     
     @given(st.text(min_size=1, max_size=100))
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_spam_detection_robustness(self, random_content):
         """
         **Property 18: Comment Spam Protection (Robustness)**

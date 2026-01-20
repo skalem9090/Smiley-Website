@@ -64,6 +64,15 @@
             <a class="btn btn-sm" href="{{ url_for('atom_feed') }}" target="_blank">📡 Atom Feed</a>
           </div>
         </div>
+        
+        <!-- Settings & Security -->
+        <div class="nav-section">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">Settings</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+            <a class="btn btn-sm btn-primary" href="{{ url_for('settings') }}">⚙️ Settings</a>
+            <a class="btn btn-sm" href="{{ url_for('security_audit_logs') }}">🔒 Security Logs</a>
+          </div>
+        </div>
       </div>
     </nav>
 

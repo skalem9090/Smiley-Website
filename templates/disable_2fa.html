@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Disable Two-Factor Authentication{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h3>Disable Two-Factor Authentication</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <strong>Warning:</strong> Disabling two-factor authentication will make your account less secure.
+                    </div>
+                    
+                    <p>To disable 2FA, please verify your identity:</p>
+                    
+                    <form method="POST" action="{{ url_for('disable_2fa') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Current Password</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="password" 
+                                   name="password" 
+                                   required
+                                   autofocus>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="totp_code" class="form-label">Verification Code</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="totp_code" 
+                                   name="totp_code" 
+                                   placeholder="000000"
+                                   maxlength="6"
+                                   pattern="[0-9]{6}"
+                                   required>
+                            <small class="form-text text-muted">Enter the 6-digit code from your authenticator app</small>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger">Disable Two-Factor Authentication</button>
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -11,7 +11,7 @@ email, and content fields and be held for moderation before public display.
 import pytest
 import uuid
 from datetime import datetime, timezone
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from hypothesis.strategies import composite
 
 from flask import Flask
@@ -27,11 +27,11 @@ def valid_comment_data(draw):
     
     # Generate valid email
     local_part = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     domain = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')),
+        alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         min_size=1, max_size=20
     ))
     tld = draw(st.sampled_from(['com', 'org', 'net', 'edu', 'gov']))
@@ -115,10 +115,13 @@ class TestCommentSubmissionRequirements:
             db.session.add(test_post)
             db.session.commit()
             
-        return app, test_post.id
+            # Store ID before leaving context
+            post_id = test_post.id
+            
+        return app, post_id
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=20, deadline=3000)
+    @settings(max_examples=20, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_valid_comment_submission_requires_moderation(self, comment_data):
         """
         **Property 15: Comment Submission Requirements (Valid Submission)**
@@ -160,7 +163,7 @@ class TestCommentSubmissionRequirements:
             assert comment in pending_comments, "Comment should appear in pending moderation queue"
     
     @given(comment_data=invalid_comment_data())
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_invalid_comment_submission_fails_validation(self, comment_data):
         """
         **Property 15: Comment Submission Requirements (Invalid Submission)**
@@ -195,7 +198,7 @@ class TestCommentSubmissionRequirements:
         ip_address=st.one_of(st.none(), st.ip_addresses(v=4).map(str)),
         user_agent=st.one_of(st.none(), st.text(max_size=255))
     )
-    @settings(max_examples=15, deadline=3000)
+    @settings(max_examples=15, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_metadata_storage(self, comment_data, ip_address, user_agent):
         """
         **Property 15: Comment Submission Requirements (Metadata Storage)**
@@ -231,7 +234,7 @@ class TestCommentSubmissionRequirements:
             assert isinstance(comment.created_at, datetime)
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_requires_published_post(self, comment_data):
         """
         **Property 15: Comment Submission Requirements (Published Post Only)**
@@ -267,7 +270,7 @@ class TestCommentSubmissionRequirements:
             assert "not allowed" in message.lower() or "unpublished" in message.lower()
     
     @given(comment_data=valid_comment_data())
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_email_normalization(self, comment_data):
         """
         **Property 15: Comment Submission Requirements (Email Normalization)**
@@ -302,7 +305,7 @@ class TestCommentSubmissionRequirements:
         comment_data=valid_comment_data(),
         content_length=st.integers(min_value=2001, max_value=5000)
     )
-    @settings(max_examples=10, deadline=3000)
+    @settings(max_examples=10, deadline=3000, suppress_health_check=[HealthCheck.data_too_large])
     def test_comment_length_validation(self, comment_data, content_length):
         """
         **Property 15: Comment Submission Requirements (Length Validation)**

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Regenerate Backup Codes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Regenerate Backup Codes</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <strong>Warning:</strong> Regenerating backup codes will invalidate all existing backup codes.
+                    </div>
+                    
+                    <p>If you've used all your backup codes or suspect they've been compromised, you can generate new ones.</p>
+                    
+                    <form method="POST" action="{{ url_for('regenerate_backup_codes') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Generate New Backup Codes</button>
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
