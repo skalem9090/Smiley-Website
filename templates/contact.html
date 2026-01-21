@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Us - Smileys Blog{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin-top: 2rem;">
+    <article class="post-article">
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: var(--ink-accent);">Contact Us</h1>
+        <p class="meta" style="margin-bottom: 2rem;">We'd love to hear from you!</p>
+
+        <div class="post-content">
+            <h2>Get in Touch</h2>
+            <p>Have questions, feedback, or suggestions? We're here to help! Feel free to reach out to us through any of the following methods:</p>
+
+            <h2>Email</h2>
+            <p>For general inquiries, feedback, or collaboration opportunities:</p>
+            <p style="font-size: 1.2rem; color: var(--ink-accent); font-weight: 600;">
+                📧 <a href="mailto:hello@smileys-blog.com">hello@smileys-blog.com</a>
+            </p>
+
+            <h2>Newsletter</h2>
+            <p>Stay updated with our latest posts about wealth, health, and happiness:</p>
+            <p>
+                <a href="{{ url_for('newsletter_subscribe') }}" class="btn btn-primary" style="display: inline-block; margin-top: 0.5rem;">
+                    📧 Subscribe to Newsletter
+                </a>
+            </p>
+
+            <h2>Social Media</h2>
+            <p>Connect with us on social media for daily inspiration and updates:</p>
+            <ul style="list-style: none; padding-left: 0;">
+                <li style="margin: 0.5rem 0;">🐦 Twitter: <a href="https://twitter.com/smileys_blog" target="_blank">@smileys_blog</a></li>
+                <li style="margin: 0.5rem 0;">📘 Facebook: <a href="https://facebook.com/smileys.blog" target="_blank">Smileys Blog</a></li>
+                <li style="margin: 0.5rem 0;">📸 Instagram: <a href="https://instagram.com/smileys.blog" target="_blank">@smileys.blog</a></li>
+            </ul>
+
+            <h2>RSS Feed</h2>
+            <p>Prefer RSS? Subscribe to our feed to get updates in your favorite RSS reader:</p>
+            <p>
+                <a href="{{ url_for('rss_feed') }}" class="btn btn-outline" style="display: inline-block; margin-top: 0.5rem;" target="_blank">
+                    📡 RSS Feed
+                </a>
+                <a href="{{ url_for('atom_feed') }}" class="btn btn-outline" style="display: inline-block; margin-top: 0.5rem;" target="_blank">
+                    📡 Atom Feed
+                </a>
+            </p>
+
+            <h2>What We Write About</h2>
+            <p>Smileys Blog focuses on three core areas:</p>
+            <ul>
+                <li><strong>💰 Wealth:</strong> Financial wisdom, money management, and building prosperity</li>
+                <li><strong>💚 Health:</strong> Physical and mental wellness, nutrition, and healthy habits</li>
+                <li><strong>😊 Happiness:</strong> Life satisfaction, relationships, and personal growth</li>
+            </ul>
+
+            <h2>Collaboration & Guest Posts</h2>
+            <p>Interested in contributing to Smileys Blog? We occasionally accept guest posts that align with our mission and values. Please email us with:</p>
+            <ul>
+                <li>Your proposed topic</li>
+                <li>A brief outline or summary</li>
+                <li>Links to your previous writing (if available)</li>
+            </ul>
+
+            <h2>Report an Issue</h2>
+            <p>Found a bug or technical issue on our website? Please let us know so we can fix it:</p>
+            <ul>
+                <li>Describe the issue you encountered</li>
+                <li>Include your browser and device information</li>
+                <li>Provide steps to reproduce the problem (if applicable)</li>
+            </ul>
+
+            <h2>Privacy & Data Requests</h2>
+            <p>For privacy-related inquiries or data access requests, please review our <a href="{{ url_for('privacy') }}">Privacy Policy</a> and contact us via email with "Privacy Request" in the subject line.</p>
+
+            <h2>Response Time</h2>
+            <p>We strive to respond to all inquiries within 2-3 business days. Thank you for your patience!</p>
+
+            <div style="margin-top: 3rem; padding: 2rem; background: var(--paper-aged); border-radius: var(--radius); border: 2px solid var(--paper-shadow);">
+                <h3 style="margin-top: 0; color: var(--ink-accent);">Quick Links</h3>
+                <ul style="list-style: none; padding-left: 0;">
+                    <li style="margin: 0.75rem 0;">📚 <a href="{{ url_for('explore') }}">Browse All Posts</a></li>
+                    <li style="margin: 0.75rem 0;">🔍 <a href="{{ url_for('search') }}">Search Content</a></li>
+                    <li style="margin: 0.75rem 0;">ℹ️ <a href="{{ url_for('about') }}">About Us</a></li>
+                    <li style="margin: 0.75rem 0;">🔒 <a href="{{ url_for('privacy') }}">Privacy Policy</a></li>
+                    <li style="margin: 0.75rem 0;">📜 <a href="{{ url_for('terms') }}">Terms of Service</a></li>
+                </ul>
+            </div>
+        </div>
+    </article>
+</div>
+{% endblock %}

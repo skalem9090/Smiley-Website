@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Terms of Service - Smileys Blog{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin-top: 2rem;">
+    <article class="post-article">
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: var(--ink-accent);">Terms of Service</h1>
+        <p class="meta" style="margin-bottom: 2rem;">Last Updated: January 21, 2026</p>
+
+        <div class="post-content">
+            <h2>Agreement to Terms</h2>
+            <p>By accessing and using Smileys Blog ("the Website"), you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using this website.</p>
+
+            <h2>Use License</h2>
+            <p>Permission is granted to temporarily access the materials (information or software) on Smileys Blog for personal, non-commercial viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:</p>
+            <ul>
+                <li>Modify or copy the materials</li>
+                <li>Use the materials for any commercial purpose or public display</li>
+                <li>Attempt to decompile or reverse engineer any software on the Website</li>
+                <li>Remove any copyright or proprietary notations from the materials</li>
+                <li>Transfer the materials to another person or "mirror" the materials on any other server</li>
+            </ul>
+            <p>This license shall automatically terminate if you violate any of these restrictions and may be terminated by Smileys Blog at any time.</p>
+
+            <h2>Content and Intellectual Property</h2>
+            <h3>Our Content</h3>
+            <p>All content on this website, including but not limited to text, graphics, logos, images, and software, is the property of Smileys Blog and is protected by copyright and intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission.</p>
+
+            <h3>User-Generated Content</h3>
+            <p>By submitting comments, feedback, or other content to our website, you grant us a non-exclusive, worldwide, royalty-free license to use, reproduce, modify, and display such content in connection with operating the Website.</p>
+
+            <h2>Acceptable Use</h2>
+            <p>You agree not to use the Website to:</p>
+            <ul>
+                <li>Violate any applicable laws or regulations</li>
+                <li>Infringe on the rights of others</li>
+                <li>Transmit harmful, offensive, or inappropriate content</li>
+                <li>Spam, phish, or engage in any fraudulent activity</li>
+                <li>Interfere with the proper functioning of the Website</li>
+                <li>Attempt to gain unauthorized access to any part of the Website</li>
+                <li>Collect or harvest personal information about other users</li>
+            </ul>
+
+            <h2>Comments and Community Guidelines</h2>
+            <p>We welcome thoughtful comments and discussions. However, we reserve the right to remove any comments that:</p>
+            <ul>
+                <li>Contain hate speech, harassment, or threats</li>
+                <li>Are spam or promotional in nature</li>
+                <li>Violate privacy or intellectual property rights</li>
+                <li>Are off-topic or disruptive</li>
+                <li>Contain false or misleading information</li>
+            </ul>
+
+            <h2>Newsletter and Email Communications</h2>
+            <p>By subscribing to our newsletter, you consent to receive periodic emails from us. You can unsubscribe at any time using the link provided in each email or through our unsubscribe page.</p>
+
+            <h2>Disclaimer of Warranties</h2>
+            <p>The materials on Smileys Blog are provided on an "as is" basis. We make no warranties, expressed or implied, and hereby disclaim all other warranties including, without limitation, implied warranties or conditions of merchantability, fitness for a particular purpose, or non-infringement of intellectual property.</p>
+            <p>We do not warrant that:</p>
+            <ul>
+                <li>The Website will be uninterrupted or error-free</li>
+                <li>Defects will be corrected</li>
+                <li>The Website or server is free of viruses or harmful components</li>
+                <li>The information provided is accurate, complete, or current</li>
+            </ul>
+
+            <h2>Limitation of Liability</h2>
+            <p>In no event shall Smileys Blog or its contributors be liable for any damages (including, without limitation, damages for loss of data or profit, or due to business interruption) arising out of the use or inability to use the materials on the Website, even if we have been notified of the possibility of such damage.</p>
+
+            <h2>External Links</h2>
+            <p>Our Website may contain links to third-party websites. We have no control over and assume no responsibility for the content, privacy policies, or practices of any third-party sites. You acknowledge and agree that we shall not be responsible for any damage or loss caused by your use of any third-party content.</p>
+
+            <h2>Indemnification</h2>
+            <p>You agree to indemnify and hold harmless Smileys Blog, its owners, employees, and contributors from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from your use of the Website or violation of these Terms.</p>
+
+            <h2>Medical and Financial Disclaimer</h2>
+            <p>Content on this website related to health, wealth, or happiness is for informational and educational purposes only. It is not intended as:</p>
+            <ul>
+                <li>Medical advice, diagnosis, or treatment</li>
+                <li>Financial or investment advice</li>
+                <li>Professional counseling or therapy</li>
+            </ul>
+            <p>Always seek the advice of qualified professionals regarding any health, financial, or personal matters.</p>
+
+            <h2>Modifications to Terms</h2>
+            <p>We reserve the right to revise these Terms of Service at any time without notice. By continuing to use the Website after changes are posted, you agree to be bound by the revised terms.</p>
+
+            <h2>Governing Law</h2>
+            <p>These terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law provisions.</p>
+
+            <h2>Termination</h2>
+            <p>We may terminate or suspend your access to the Website immediately, without prior notice or liability, for any reason, including breach of these Terms.</p>
+
+            <h2>Severability</h2>
+            <p>If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary so that the Terms shall otherwise remain in full force and effect.</p>
+
+            <h2>Contact Information</h2>
+            <p>If you have any questions about these Terms of Service, please contact us at:</p>
+            <p><a href="{{ url_for('contact') }}">Contact Page</a></p>
+        </div>
+    </article>
+</div>
+{% endblock %}

@@ -72,7 +72,8 @@
     <!-- Prism.js for syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
-    <link rel="icon" type="image/png" href="/favicon.ico">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/logos/LogoMain.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/logos/LogoMain.png') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <!-- RSS/Atom Feed Discovery Links -->
@@ -82,6 +83,9 @@
   <body>
     <nav class="main-nav">
       <div class="nav-left">
+        <a href="{{ url_for('index') }}" class="nav-logo-link">
+          <img src="{{ url_for('static', filename='assets/logos/LogoMain.png') }}" alt="Smileys Blog Logo" class="nav-logo">
+        </a>
         <a href="{{ url_for('index') }}">Home</a>
         <a href="{{ url_for('about') }}">About</a>
         <a href="{{ url_for('explore') }}">Explore</a>
@@ -189,16 +193,20 @@
       <div class="container footer-inner">
         <div class="footer-info muted">
           © 2026 Smileys Blog · Short essays and practical tips about wealth, health &amp; happiness
-          {% if not current_user.is_authenticated %}
-            <br><small style="margin-top: 0.5rem; display: block;">
+          <br><small style="margin-top: 0.5rem; display: block;">
+            <a href="{{ url_for('privacy') }}" style="color: var(--muted); text-decoration: none;">Privacy Policy</a> · 
+            <a href="{{ url_for('terms') }}" style="color: var(--muted); text-decoration: none;">Terms of Service</a> · 
+            <a href="{{ url_for('contact') }}" style="color: var(--muted); text-decoration: none;">Contact</a>
+            {% if not current_user.is_authenticated %}
+              <br>
               <a href="{{ url_for('newsletter_subscribe') }}" style="color: var(--accent); text-decoration: none;">
                 📧 Subscribe to our newsletter
               </a> · 
               <a href="{{ url_for('rss_feed') }}" style="color: var(--muted); text-decoration: none;">
                 📡 RSS Feed
               </a>
-            </small>
-          {% endif %}
+            {% endif %}
+          </small>
         </div>
         {% if current_user.is_authenticated and current_user.is_admin %}
           <div class="footer-actions">

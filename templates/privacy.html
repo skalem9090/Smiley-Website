@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - Smileys Blog{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin-top: 2rem;">
+    <article class="post-article">
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: var(--ink-accent);">Privacy Policy</h1>
+        <p class="meta" style="margin-bottom: 2rem;">Last Updated: January 21, 2026</p>
+
+        <div class="post-content">
+            <h2>Introduction</h2>
+            <p>Welcome to Smileys Blog. We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information when you visit our website.</p>
+
+            <h2>Information We Collect</h2>
+            <h3>Information You Provide</h3>
+            <p>When you subscribe to our newsletter or interact with our website, we may collect:</p>
+            <ul>
+                <li>Email address (for newsletter subscriptions)</li>
+                <li>Name (if provided)</li>
+                <li>Comments and feedback you submit</li>
+            </ul>
+
+            <h3>Automatically Collected Information</h3>
+            <p>When you visit our website, we automatically collect certain information:</p>
+            <ul>
+                <li>IP address</li>
+                <li>Browser type and version</li>
+                <li>Pages visited and time spent on pages</li>
+                <li>Referring website addresses</li>
+                <li>Device information</li>
+            </ul>
+
+            <h2>How We Use Your Information</h2>
+            <p>We use the information we collect to:</p>
+            <ul>
+                <li>Send you our newsletter (if you've subscribed)</li>
+                <li>Respond to your comments and inquiries</li>
+                <li>Improve our website and content</li>
+                <li>Analyze website usage and trends</li>
+                <li>Prevent fraud and enhance security</li>
+            </ul>
+
+            <h2>Cookies and Tracking</h2>
+            <p>We use cookies and similar tracking technologies to enhance your experience on our website. Cookies are small text files stored on your device that help us:</p>
+            <ul>
+                <li>Remember your preferences</li>
+                <li>Understand how you use our website</li>
+                <li>Improve website functionality</li>
+            </ul>
+            <p>You can control cookies through your browser settings. However, disabling cookies may affect your ability to use certain features of our website.</p>
+
+            <h2>Data Sharing and Disclosure</h2>
+            <p>We do not sell, trade, or rent your personal information to third parties. We may share your information only in the following circumstances:</p>
+            <ul>
+                <li><strong>Service Providers:</strong> We may share data with trusted service providers who assist us in operating our website (e.g., email service providers, hosting services)</li>
+                <li><strong>Legal Requirements:</strong> We may disclose information if required by law or to protect our rights and safety</li>
+                <li><strong>Business Transfers:</strong> In the event of a merger, acquisition, or sale of assets, your information may be transferred</li>
+            </ul>
+
+            <h2>Data Security</h2>
+            <p>We implement appropriate technical and organizational measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet is 100% secure.</p>
+
+            <h2>Your Rights</h2>
+            <p>You have the right to:</p>
+            <ul>
+                <li><strong>Access:</strong> Request a copy of the personal data we hold about you</li>
+                <li><strong>Correction:</strong> Request correction of inaccurate or incomplete data</li>
+                <li><strong>Deletion:</strong> Request deletion of your personal data</li>
+                <li><strong>Opt-Out:</strong> Unsubscribe from our newsletter at any time</li>
+                <li><strong>Object:</strong> Object to processing of your personal data</li>
+            </ul>
+
+            <h2>Newsletter Subscriptions</h2>
+            <p>If you subscribe to our newsletter, we will use your email address to send you regular updates about our blog content. You can unsubscribe at any time by:</p>
+            <ul>
+                <li>Clicking the "unsubscribe" link in any newsletter email</li>
+                <li>Visiting our <a href="{{ url_for('newsletter_unsubscribe') }}">unsubscribe page</a></li>
+            </ul>
+
+            <h2>Children's Privacy</h2>
+            <p>Our website is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If you believe we have collected information from a child under 13, please contact us immediately.</p>
+
+            <h2>Third-Party Links</h2>
+            <p>Our website may contain links to third-party websites. We are not responsible for the privacy practices of these external sites. We encourage you to review their privacy policies.</p>
+
+            <h2>Changes to This Policy</h2>
+            <p>We may update this privacy policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last Updated" date.</p>
+
+            <h2>Contact Us</h2>
+            <p>If you have any questions about this privacy policy or our data practices, please contact us at:</p>
+            <p><a href="{{ url_for('contact') }}">Contact Page</a></p>
+        </div>
+    </article>
+</div>
+{% endblock %}

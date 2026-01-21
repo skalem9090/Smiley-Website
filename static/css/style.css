@@ -263,6 +263,31 @@ header.site-hero::before {
 	margin-left: 60px; /* Account for journal margin */
 }
 
+/* Logo styling */
+.nav-logo-link {
+	display: flex;
+	align-items: center;
+	padding: 0 !important;
+	margin-right: 1rem;
+	transform: rotate(0deg) !important;
+}
+
+.nav-logo-link::after {
+	display: none !important;
+}
+
+.nav-logo {
+	height: 150px;
+	width: auto;
+	transition: var(--transition);
+	filter: drop-shadow(0 2px 4px rgba(139, 69, 19, 0.2));
+}
+
+.nav-logo:hover {
+	transform: scale(1.05);
+	filter: drop-shadow(0 4px 8px rgba(139, 69, 19, 0.3));
+}
+
 .nav-left a{
 	color: var(--ink-dark); 
 	text-decoration:none; 
@@ -606,7 +631,16 @@ header.site-hero::before {
 		padding: 1rem;
 	}
 	.main-nav .nav-left{
+		display:flex;
+		margin-left: 0;
+		gap: 0.5rem;
+	}
+	/* Hide navigation links but keep logo visible */
+	.main-nav .nav-left a:not(.nav-logo-link){
 		display:none;
+	}
+	.nav-logo {
+		height: 135px;
 	}
 	.site-title h1 {
 		font-size: 2rem;
@@ -997,6 +1031,16 @@ label{
 @media (max-width: 768px) {
 	.form-row{
 		grid-template-columns: 1fr;
+	}
+	
+	/* Mobile logo adjustments */
+	.nav-left {
+		margin-left: 0;
+		gap: 1rem;
+	}
+	
+	.nav-logo {
+		height: 120px;
 	}
 	
 	.site-footer .footer-inner{

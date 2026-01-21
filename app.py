@@ -885,6 +885,33 @@ def create_app():
                              og_tags=og_tags,
                              structured_data=structured_data)
 
+    @app.route('/privacy')
+    def privacy():
+        """Privacy Policy page."""
+        seo_meta = seo_manager.generate_meta_tags(
+            page_type='page',
+            content={'title': 'Privacy Policy', 'description': 'Our privacy policy and data protection practices'}
+        )
+        return render_template('privacy.html', seo_meta=seo_meta)
+
+    @app.route('/terms')
+    def terms():
+        """Terms of Service page."""
+        seo_meta = seo_manager.generate_meta_tags(
+            page_type='page',
+            content={'title': 'Terms of Service', 'description': 'Terms and conditions for using our website'}
+        )
+        return render_template('terms.html', seo_meta=seo_meta)
+
+    @app.route('/contact')
+    def contact():
+        """Contact page."""
+        seo_meta = seo_manager.generate_meta_tags(
+            page_type='page',
+            content={'title': 'Contact Us', 'description': 'Get in touch with us'}
+        )
+        return render_template('contact.html', seo_meta=seo_meta)
+
     @app.route('/dashboard', methods=['GET', 'POST'])
     @login_required
     def dashboard():

@@ -2,7 +2,7 @@
 Newsletter Manager for email subscription and digest functionality.
 
 This module provides comprehensive newsletter management including subscription handling,
-email confirmation, digest generation, and SendGrid integration for email delivery.
+email confirmation, digest generation, and Resend integration for email delivery.
 """
 
 import os
@@ -12,9 +12,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from flask import url_for, render_template_string
 from models import db, NewsletterSubscription, Post, User
-import sendgrid
-from sendgrid.helpers.mail import Mail, Email, To, Content, Attachment
-from python_http_client.exceptions import HTTPError
+from resend_email_service import ResendEmailService
 import logging
 
 
@@ -24,7 +22,7 @@ class NewsletterManager:
     def __init__(self, app=None):
         """Initialize NewsletterManager with optional Flask app."""
         self.app = app
-        self.sg = None
+        self.email_service = None
         if app:
             self.init_app(app)
     
@@ -32,12 +30,16 @@ class NewsletterManager:
         """Initialize with Flask app configuration."""
         self.app = app
         
-        # SendGrid configuration
-        api_key = app.config.get('SENDGRID_API_KEY') or os.environ.get('SENDGRID_API_KEY')
+        # Resend email service configuration
+        api_key = app.config.get('RESEND_API_KEY') or os.environ.get('RESEND_API_KEY')
         if api_key:
-            self.sg = sendgrid.SendGridAPIClient(api_key=api_key)
+            self.email_service = ResendEmailService(
+                api_key=api_key,
+                from_email=app.config.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev'),
+                from_name=app.config.get('RESEND_FROM_NAME', 'Smileys Blog')
+            )
         else:
-            app.logger.warning("SendGrid API key not configured. Email functionality will be disabled.")
+            app.logger.warning("Resend API key not configured. Email functionality will be disabled.")
         
         # Newsletter configuration
         self.from_email = app.config.get('NEWSLETTER_FROM_EMAIL', 'noreply@example.com')
@@ -428,141 +430,27 @@ class NewsletterManager:
     
     def _send_confirmation_email(self, subscription: NewsletterSubscription) -> Tuple[bool, str]:
         """Send confirmation email to subscriber."""
-        if not self.sg:
+        if not self.email_service:
             return False, "Email service not configured"
         
         try:
-            confirmation_url = f"{self.base_url}{url_for('confirm_subscription', token=subscription.confirmation_token)}"
-            
-            # Email content
-            subject = self.confirmation_subject
-            
-            html_content = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #9b5e2b;">Confirm Your Subscription</h2>
-                    
-                    <p>Thank you for subscribing to our newsletter!</p>
-                    
-                    <p>To complete your subscription, please click the button below:</p>
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="{confirmation_url}" 
-                           style="background-color: #9b5e2b; color: white; padding: 12px 24px; 
-                                  text-decoration: none; border-radius: 6px; display: inline-block;">
-                            Confirm Subscription
-                        </a>
-                    </div>
-                    
-                    <p>Or copy and paste this link into your browser:</p>
-                    <p style="word-break: break-all; color: #666;">{confirmation_url}</p>
-                    
-                    <p>This confirmation link will expire in 24 hours.</p>
-                    
-                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    <p style="font-size: 12px; color: #666;">
-                        If you didn't subscribe to this newsletter, you can safely ignore this email.
-                    </p>
-                </div>
-            </body>
-            </html>
-            """
-            
-            text_content = f"""
-            Confirm Your Subscription
-            
-            Thank you for subscribing to our newsletter!
-            
-            To complete your subscription, please visit this link:
-            {confirmation_url}
-            
-            This confirmation link will expire in 24 hours.
-            
-            If you didn't subscribe to this newsletter, you can safely ignore this email.
-            """
-            
-            # Create and send email
-            message = Mail(
-                from_email=Email(self.from_email, self.from_name),
-                to_emails=To(subscription.email),
-                subject=subject,
-                html_content=Content("text/html", html_content),
-                plain_text_content=Content("text/plain", text_content)
+            return self.email_service.send_confirmation_email(
+                email=subscription.email,
+                token=subscription.confirmation_token
             )
-            
-            response = self.sg.send(message)
-            
-            if response.status_code in [200, 202]:
-                return True, "Confirmation email sent successfully"
-            else:
-                return False, f"Email service returned status {response.status_code}"
-                
-        except HTTPError as e:
-            error_msg = f"SendGrid error: {e.reason}"
-            if self.app:
-                self.app.logger.error(f"SendGrid error sending confirmation to {subscription.email}: {error_msg}")
-            return False, error_msg
         except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
+            error_msg = f"Error sending confirmation: {str(e)}"
             if self.app:
                 self.app.logger.error(f"Error sending confirmation to {subscription.email}: {error_msg}")
             return False, error_msg
     
     def _send_welcome_email(self, subscription: NewsletterSubscription) -> Tuple[bool, str]:
         """Send welcome email to confirmed subscriber."""
-        if not self.sg:
+        if not self.email_service:
             return False, "Email service not configured"
         
         try:
-            unsubscribe_url = f"{self.base_url}{url_for('unsubscribe_newsletter', token=subscription.unsubscribe_token)}"
-            
-            subject = f"Welcome to {self.from_name}!"
-            
-            html_content = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #9b5e2b;">Welcome to Our Newsletter!</h2>
-                    
-                    <p>Your subscription has been confirmed successfully.</p>
-                    
-                    <p>You'll receive our {subscription.frequency} digest with the latest posts about wealth, health, and happiness.</p>
-                    
-                    <p>Thank you for joining our community!</p>
-                    
-                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    <p style="font-size: 12px; color: #666;">
-                        You can <a href="{unsubscribe_url}">unsubscribe</a> at any time.
-                    </p>
-                </div>
-            </body>
-            </html>
-            """
-            
-            text_content = f"""
-            Welcome to Our Newsletter!
-            
-            Your subscription has been confirmed successfully.
-            
-            You'll receive our {subscription.frequency} digest with the latest posts about wealth, health, and happiness.
-            
-            Thank you for joining our community!
-            
-            You can unsubscribe at any time: {unsubscribe_url}
-            """
-            
-            message = Mail(
-                from_email=Email(self.from_email, self.from_name),
-                to_emails=To(subscription.email),
-                subject=subject,
-                html_content=Content("text/html", html_content),
-                plain_text_content=Content("text/plain", text_content)
-            )
-            
-            response = self.sg.send(message)
-            return response.status_code in [200, 202], "Welcome email sent"
-            
+            return self.email_service.send_welcome_email(email=subscription.email)
         except Exception as e:
             if self.app:
                 self.app.logger.error(f"Error sending welcome email to {subscription.email}: {str(e)}")
@@ -570,7 +458,7 @@ class NewsletterManager:
     
     def _send_digest_email(self, subscription: NewsletterSubscription, digest_data: Dict) -> Tuple[bool, str]:
         """Send digest email to subscriber."""
-        if not self.sg:
+        if not self.email_service:
             return False, "Email service not configured"
         
         try:
@@ -580,21 +468,17 @@ class NewsletterManager:
             date_str = digest_data['end_date'].strftime('%B %d, %Y')
             subject = self.digest_subject_template.format(date=date_str)
             
-            # Generate HTML content
+            # Generate HTML and text content
             html_content = self._generate_digest_html(digest_data, unsubscribe_url)
             text_content = self._generate_digest_text(digest_data, unsubscribe_url)
             
-            message = Mail(
-                from_email=Email(self.from_email, self.from_name),
-                to_emails=To(subscription.email),
+            return self.email_service.send_digest_email(
+                email=subscription.email,
                 subject=subject,
-                html_content=Content("text/html", html_content),
-                plain_text_content=Content("text/plain", text_content)
+                html_content=html_content,
+                text_content=text_content,
+                unsubscribe_url=unsubscribe_url
             )
-            
-            response = self.sg.send(message)
-            return response.status_code in [200, 202], "Digest email sent"
-            
         except Exception as e:
             if self.app:
                 self.app.logger.error(f"Error sending digest to {subscription.email}: {str(e)}")
