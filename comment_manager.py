@@ -12,9 +12,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from flask import request, url_for, render_template_string
 from models import db, Comment, Post, User
-import sendgrid
-from sendgrid.helpers.mail import Mail, Email, To, Content
-from python_http_client.exceptions import HTTPError
+from resend_email_service import ResendEmailService
 import logging
 
 
@@ -24,7 +22,7 @@ class CommentManager:
     def __init__(self, app=None):
         """Initialize CommentManager with optional Flask app."""
         self.app = app
-        self.sg = None
+        self.email_service = None
         if app:
             self.init_app(app)
     
@@ -32,16 +30,18 @@ class CommentManager:
         """Initialize with Flask app configuration."""
         self.app = app
         
-        # SendGrid configuration for notifications
-        api_key = app.config.get('SENDGRID_API_KEY') or os.environ.get('SENDGRID_API_KEY')
+        # Resend email service configuration for notifications
+        api_key = app.config.get('RESEND_API_KEY') or os.environ.get('RESEND_API_KEY')
         if api_key:
-            self.sg = sendgrid.SendGridAPIClient(api_key=api_key)
+            self.email_service = ResendEmailService(
+                api_key=api_key,
+                from_email=app.config.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev'),
+                from_name=app.config.get('RESEND_FROM_NAME', 'Smileys Blog')
+            )
         else:
-            app.logger.warning("SendGrid API key not configured. Comment notification emails will be disabled.")
+            app.logger.warning("Resend API key not configured. Comment notification emails will be disabled.")
         
         # Email configuration
-        self.from_email = app.config.get('COMMENT_FROM_EMAIL', 'noreply@example.com')
-        self.from_name = app.config.get('COMMENT_FROM_NAME', 'Smileys Blog')
         self.admin_email = app.config.get('ADMIN_EMAIL', 'admin@example.com')
         self.base_url = app.config.get('BASE_URL', 'http://localhost:5000')
         
@@ -517,70 +517,25 @@ class CommentManager:
     
     def _send_notification_email(self, comment: Comment) -> Tuple[bool, str]:
         """Send notification email to administrators about new comment."""
-        if not self.sg or not self.admin_email:
+        if not self.email_service or not self.admin_email:
             return False, "Email service not configured"
         
         try:
             post = comment.post
             comment_url = f"{self.base_url}{url_for('post_view', post_id=post.id)}#comment-{comment.id}"
-            moderation_url = f"{self.base_url}{url_for('dashboard')}#comments"
             
-            subject = f"New Comment on '{post.title}'"
+            comment_data = {
+                'post_title': post.title,
+                'post_url': comment_url,
+                'author_name': comment.author_name,
+                'author_email': comment.author_email,
+                'content': comment.content
+            }
             
-            html_content = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #9b5e2b;">New Comment Submitted</h2>
-                    
-                    <p><strong>Post:</strong> {post.title}</p>
-                    <p><strong>Author:</strong> {comment.author_name} ({comment.author_email})</p>
-                    <p><strong>Submitted:</strong> {comment.created_at.strftime('%B %d, %Y at %I:%M %p')}</p>
-                    
-                    <div style="background: #f9f9f9; padding: 15px; border-left: 4px solid #9b5e2b; margin: 20px 0;">
-                        <p><strong>Comment:</strong></p>
-                        <p>{comment.content}</p>
-                    </div>
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="{moderation_url}" 
-                           style="background-color: #9b5e2b; color: white; padding: 12px 24px; 
-                                  text-decoration: none; border-radius: 6px; display: inline-block;">
-                            Moderate Comment
-                        </a>
-                    </div>
-                    
-                    <p><a href="{comment_url}">View comment on site</a></p>
-                </div>
-            </body>
-            </html>
-            """
-            
-            text_content = f"""
-            New Comment Submitted
-            
-            Post: {post.title}
-            Author: {comment.author_name} ({comment.author_email})
-            Submitted: {comment.created_at.strftime('%B %d, %Y at %I:%M %p')}
-            
-            Comment:
-            {comment.content}
-            
-            Moderate: {moderation_url}
-            View: {comment_url}
-            """
-            
-            message = Mail(
-                from_email=Email(self.from_email, self.from_name),
-                to_emails=To(self.admin_email),
-                subject=subject,
-                html_content=Content("text/html", html_content),
-                plain_text_content=Content("text/plain", text_content)
+            return self.email_service.send_comment_notification(
+                admin_email=self.admin_email,
+                comment_data=comment_data
             )
-            
-            response = self.sg.send(message)
-            return response.status_code in [200, 202], "Notification email sent"
-            
         except Exception as e:
             if self.app:
                 self.app.logger.error(f"Error sending comment notification: {str(e)}")
