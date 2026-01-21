@@ -57,6 +57,14 @@ def create_app():
     app = Flask(__name__, static_folder='static', template_folder='templates')
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret')
     
+    # Email configuration (Resend)
+    app.config['RESEND_API_KEY'] = os.environ.get('RESEND_API_KEY')
+    app.config['RESEND_FROM_EMAIL'] = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')
+    app.config['RESEND_FROM_NAME'] = os.environ.get('RESEND_FROM_NAME', 'Smileys Blog')
+    app.config['SITE_URL'] = os.environ.get('SITE_URL', 'http://localhost:5000')
+    app.config['BASE_URL'] = os.environ.get('BASE_URL', os.environ.get('SITE_URL', 'http://localhost:5000'))
+    app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', os.environ.get('RESEND_FROM_EMAIL', 'admin@example.com'))
+    
     # Get database URL and fix Railway's postgres:// to postgresql://
     database_url = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.abspath("instance/site.db")}')
     
