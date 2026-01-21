@@ -4426,3 +4426,403 @@ label{
     color: var(--ink-accent) !important;
     border-bottom-color: var(--ink-accent) !important;
 }
+
+
+/* ========================================
+   NEWS TABLET MOBILE VIEW
+   Modern digital newspaper aesthetic
+   ======================================== */
+
+@media (max-width: 768px) {
+	/* Transform body to news tablet style */
+	body {
+		background: #ffffff;
+		background-image: none;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+		font-size: 15px;
+		line-height: 1.6;
+	}
+	
+	body::before {
+		display: none; /* Remove paper lines */
+	}
+	
+	/* News tablet header */
+	.main-nav {
+		background: #1a1a1a;
+		color: #ffffff;
+		padding: 0.75rem 1rem;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+		position: sticky;
+		top: 0;
+		z-index: 1000;
+	}
+	
+	.site-title h1 {
+		font-family: 'Georgia', 'Times New Roman', serif;
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: #ffffff;
+		margin: 0;
+		letter-spacing: 0.5px;
+	}
+	
+	.site-title a {
+		color: #ffffff;
+		text-decoration: none;
+	}
+	
+	/* News tablet hero section */
+	header.site-hero {
+		background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+		padding: 2rem 1rem;
+		color: #ffffff;
+		border-bottom: 3px solid #e74c3c;
+	}
+	
+	.hero-content h2 {
+		font-family: 'Georgia', serif;
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin-bottom: 0.5rem;
+		line-height: 1.3;
+	}
+	
+	.hero-content p {
+		font-size: 1rem;
+		opacity: 0.95;
+		line-height: 1.5;
+	}
+	
+	/* Main content area - news feed style */
+	main {
+		padding: 0;
+		max-width: 100%;
+		background: #f5f5f5;
+	}
+	
+	main::before {
+		display: none; /* Remove journal margin */
+	}
+	
+	/* News article cards */
+	.card {
+		background: #ffffff;
+		border-radius: 0;
+		border: none;
+		border-bottom: 1px solid #e0e0e0;
+		padding: 1.25rem;
+		margin-bottom: 0;
+		box-shadow: none;
+	}
+	
+	.card:hover {
+		background: #fafafa;
+		box-shadow: none;
+	}
+	
+	/* Featured article styling */
+	.featured-main {
+		background: #ffffff;
+		border-radius: 0;
+		padding: 1.5rem;
+		border-left: 4px solid #e74c3c;
+		margin-bottom: 1rem;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+	}
+	
+	.featured-main h2 {
+		font-family: 'Georgia', serif;
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: #1a1a1a;
+		margin-bottom: 0.75rem;
+		line-height: 1.3;
+	}
+	
+	.featured-main .excerpt {
+		font-size: 0.95rem;
+		color: #555;
+		line-height: 1.6;
+	}
+	
+	/* Post titles in feed */
+	.post-card h3,
+	.post-card .title {
+		font-family: 'Georgia', serif;
+		font-size: 1.15rem;
+		font-weight: 700;
+		color: #1a1a1a;
+		line-height: 1.4;
+		margin-bottom: 0.5rem;
+	}
+	
+	.post-card h3 a,
+	.post-card .title a {
+		color: #1a1a1a;
+		text-decoration: none;
+	}
+	
+	.post-card h3 a:hover,
+	.post-card .title a:hover {
+		color: #e74c3c;
+	}
+	
+	/* Meta information - news style */
+	.meta,
+	.post-meta {
+		font-size: 0.8rem;
+		color: #888;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin-bottom: 0.5rem;
+	}
+	
+	/* Category badges - news style */
+	.category-badge {
+		display: inline-block;
+		padding: 0.25rem 0.75rem;
+		background: #e74c3c;
+		color: #ffffff;
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		border-radius: 2px;
+		margin-right: 0.5rem;
+	}
+	
+	/* Buttons - news tablet style */
+	.btn {
+		background: #e74c3c;
+		color: #ffffff;
+		border: none;
+		padding: 0.75rem 1.5rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		border-radius: 3px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+	
+	.btn:hover {
+		background: #c0392b;
+		box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+	}
+	
+	.btn-secondary {
+		background: #34495e;
+	}
+	
+	.btn-secondary:hover {
+		background: #2c3e50;
+	}
+	
+	/* Full article view - news reader style */
+	.post-article {
+		background: #ffffff;
+		padding: 1.5rem;
+		margin: 0;
+		border-radius: 0;
+		box-shadow: none;
+	}
+	
+	.post-article h1 {
+		font-family: 'Georgia', serif;
+		font-size: 1.75rem;
+		font-weight: 700;
+		color: #1a1a1a;
+		line-height: 1.3;
+		margin-bottom: 1rem;
+	}
+	
+	.post-article .post-content {
+		font-size: 1rem;
+		line-height: 1.7;
+		color: #333;
+	}
+	
+	.post-article .post-content p {
+		margin-bottom: 1.25rem;
+	}
+	
+	.post-article .post-content h2 {
+		font-family: 'Georgia', serif;
+		font-size: 1.4rem;
+		font-weight: 700;
+		color: #1a1a1a;
+		margin-top: 2rem;
+		margin-bottom: 1rem;
+		border-left: 4px solid #e74c3c;
+		padding-left: 1rem;
+	}
+	
+	.post-article .post-content h3 {
+		font-family: 'Georgia', serif;
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: #2c3e50;
+		margin-top: 1.5rem;
+		margin-bottom: 0.75rem;
+	}
+	
+	/* Images in articles - news style */
+	.post-article img,
+	.post-content img {
+		width: 100%;
+		height: auto;
+		border-radius: 0;
+		margin: 1.5rem 0;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+	}
+	
+	/* Blockquotes - news style */
+	.post-content blockquote {
+		border-left: 4px solid #e74c3c;
+		padding-left: 1.5rem;
+		margin: 1.5rem 0;
+		font-style: italic;
+		color: #555;
+		background: #f9f9f9;
+		padding: 1rem 1.5rem;
+	}
+	
+	/* Tags - news style */
+	.tag,
+	.post-tags a {
+		display: inline-block;
+		padding: 0.4rem 0.8rem;
+		background: #ecf0f1;
+		color: #2c3e50;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+		border-radius: 2px;
+		margin-right: 0.5rem;
+		margin-bottom: 0.5rem;
+		text-decoration: none;
+	}
+	
+	.tag:hover,
+	.post-tags a:hover {
+		background: #bdc3c7;
+		color: #1a1a1a;
+	}
+	
+	/* Footer - news tablet style */
+	footer {
+		background: #1a1a1a;
+		color: #ffffff;
+		padding: 2rem 1rem;
+		text-align: center;
+		font-size: 0.85rem;
+	}
+	
+	footer a {
+		color: #e74c3c;
+		text-decoration: none;
+	}
+	
+	/* Navigation dropdown - news style */
+	.dropdown-content {
+		background: #ffffff;
+		border-radius: 4px;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+		border: 1px solid #e0e0e0;
+	}
+	
+	.dropdown-content a {
+		color: #1a1a1a;
+		padding: 0.75rem 1rem;
+		font-size: 0.9rem;
+	}
+	
+	.dropdown-content a:hover {
+		background: #f5f5f5;
+		color: #e74c3c;
+	}
+	
+	/* Search bar - news style */
+	.nav-search-input {
+		background: rgba(255,255,255,0.15);
+		border: 1px solid rgba(255,255,255,0.3);
+		color: #ffffff;
+		padding: 0.5rem 1rem;
+		border-radius: 20px;
+		font-size: 0.9rem;
+	}
+	
+	.nav-search-input::placeholder {
+		color: rgba(255,255,255,0.7);
+	}
+	
+	.nav-search-input:focus {
+		background: rgba(255,255,255,0.25);
+		border-color: rgba(255,255,255,0.5);
+	}
+	
+	/* Section headers - news style */
+	h3, h4 {
+		font-family: 'Georgia', serif;
+		font-weight: 700;
+		color: #1a1a1a;
+	}
+	
+	/* Remove paper textures and journal styling */
+	.card::before,
+	.card::after,
+	.post-article::before,
+	.post-article::after {
+		display: none;
+	}
+	
+	/* Grid layout for news feed */
+	.grid {
+		display: block;
+		padding: 0;
+	}
+	
+	/* Spacing adjustments */
+	.container {
+		padding: 0;
+	}
+	
+	section {
+		margin-bottom: 0;
+	}
+	
+	/* Developer indicator - news style */
+	.developer-indicator {
+		background: #e74c3c;
+		color: #ffffff;
+		border-radius: 20px;
+		font-size: 0.7rem;
+		padding: 0.4rem 0.8rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+}
+
+/* Tablet-specific adjustments (between phone and desktop) */
+@media (min-width: 481px) and (max-width: 768px) {
+	.post-article h1 {
+		font-size: 2rem;
+	}
+	
+	.featured-main h2 {
+		font-size: 1.75rem;
+	}
+	
+	.post-card h3,
+	.post-card .title {
+		font-size: 1.25rem;
+	}
+	
+	.card {
+		padding: 1.5rem;
+	}
+}
