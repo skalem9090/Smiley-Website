@@ -133,7 +133,14 @@ class NewsletterManager:
                 return True, "Subscription already confirmed", subscription
             
             # Check if token is expired (24 hours)
-            if subscription.subscribed_at < datetime.now(timezone.utc) - timedelta(hours=24):
+            # Make sure both datetimes are timezone-aware for comparison
+            subscribed_at = subscription.subscribed_at
+            if subscribed_at.tzinfo is None:
+                # If stored datetime is naive, assume UTC
+                subscribed_at = subscribed_at.replace(tzinfo=timezone.utc)
+            
+            expiry_time = datetime.now(timezone.utc) - timedelta(hours=24)
+            if subscribed_at < expiry_time:
                 return False, "Confirmation token has expired", subscription
             
             # Confirm subscription
@@ -143,8 +150,13 @@ class NewsletterManager:
             
             db.session.commit()
             
-            # Send welcome email
-            self._send_welcome_email(subscription)
+            # Send welcome email (don't fail if email fails)
+            try:
+                self._send_welcome_email(subscription)
+            except Exception as email_error:
+                if self.app:
+                    self.app.logger.warning(f"Failed to send welcome email: {str(email_error)}")
+                # Continue anyway - subscription is confirmed
             
             return True, "Subscription confirmed successfully", subscription
             
