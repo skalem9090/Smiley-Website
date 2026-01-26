@@ -14,8 +14,6 @@ from typing import Dict, Any, List, Tuple, Optional
 from flask import current_app
 from models import db, Post, Comment, NewsletterSubscription, SearchQuery
 from sqlalchemy import text
-import sendgrid
-from python_http_client.exceptions import HTTPError
 
 
 class SystemHealthMonitor:
@@ -41,7 +39,6 @@ class SystemHealthMonitor:
         self.high_memory_threshold = app.config.get('HIGH_MEMORY_THRESHOLD', 500)  # MB
         
         # Service configurations
-        self.sendgrid_api_key = app.config.get('SENDGRID_API_KEY') or os.environ.get('SENDGRID_API_KEY')
         self.base_url = app.config.get('BASE_URL', 'http://localhost:5000')
     
     def get_overall_health(self) -> Dict[str, Any]:
@@ -254,44 +251,45 @@ class SystemHealthMonitor:
     
     def check_email_service_health(self) -> Dict[str, Any]:
         """
-        Check email service connectivity and configuration.
+        Check email service connectivity and configuration (Resend).
         
         Returns:
             Dictionary with email service health status
         """
         try:
-            if not self.sendgrid_api_key:
+            # Check for Resend API key
+            resend_api_key = os.environ.get('RESEND_API_KEY')
+            
+            if not resend_api_key:
                 return {
                     'status': 'warning',
-                    'message': "SendGrid API key not configured",
+                    'message': "Resend API key not configured",
                     'details': {'configured': False},
                     'last_checked': datetime.now(timezone.utc).isoformat()
                 }
             
             start_time = time.time()
             
-            # Test SendGrid API connectivity
-            sg = sendgrid.SendGridAPIClient(api_key=self.sendgrid_api_key)
-            
+            # Test Resend API connectivity with a simple API call
             try:
-                # Get API key info (this doesn't send an email)
-                response = sg.client.api_keys.get()
+                import requests
+                response = requests.get(
+                    'https://api.resend.com/emails',
+                    headers={'Authorization': f'Bearer {resend_api_key}'},
+                    timeout=5
+                )
                 api_test_time = time.time() - start_time
                 
-                if response.status_code == 200:
+                if response.status_code in [200, 401]:  # 401 means API key is being validated
                     status = 'healthy'
                     message = "Email service is connected and ready"
                 else:
                     status = 'warning'
                     message = f"Email service responded with status {response.status_code}"
                 
-            except HTTPError as e:
-                if e.status_code == 401:
-                    status = 'critical'
-                    message = "Email service authentication failed"
-                else:
-                    status = 'warning'
-                    message = f"Email service error: {e.reason}"
+            except requests.exceptions.RequestException as e:
+                status = 'warning'
+                message = f"Email service connection error: {str(e)}"
                 api_test_time = time.time() - start_time
             
             # Get recent email statistics
