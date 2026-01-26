@@ -39,3 +39,4 @@ hypothesis==6.92.1
 # Utilities
 requests==2.32.3
 click==8.2.1
+psutil==6.1.1
