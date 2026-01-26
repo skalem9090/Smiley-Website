@@ -166,77 +166,130 @@ class SystemHealthMonitor:
         try:
             start_time = time.time()
             
-            # Check if FTS table exists
-            fts_exists = db.session.execute(
-                text("SELECT name FROM sqlite_master WHERE type='table' AND name='post_search_fts'")
-            ).scalar()
+            # Detect database type
+            db_url = str(db.engine.url)
+            is_postgres = 'postgresql' in db_url
+            is_sqlite = 'sqlite' in db_url
             
-            if not fts_exists:
-                return {
-                    'status': 'critical',
-                    'message': "Search index table does not exist",
-                    'details': {'fts_table_exists': False},
-                    'last_checked': datetime.now(timezone.utc).isoformat()
-                }
+            if is_postgres:
+                # PostgreSQL doesn't use SQLite FTS - check if search functionality exists differently
+                # For now, just check basic search capability
+                try:
+                    # Count published posts
+                    published_count = db.session.query(Post).filter(
+                        Post.status == 'published'
+                    ).count()
+                    
+                    # Test basic search using ILIKE (PostgreSQL case-insensitive search)
+                    test_start = time.time()
+                    db.session.query(Post).filter(
+                        Post.title.ilike('%test%')
+                    ).limit(1).all()
+                    test_query_time = time.time() - test_start
+                    
+                    check_time = time.time() - start_time
+                    
+                    return {
+                        'status': 'healthy',
+                        'message': "Search functionality is available (PostgreSQL)",
+                        'details': {
+                            'published_count': published_count,
+                            'test_query_time': round(test_query_time, 3),
+                            'check_time': round(check_time, 3),
+                            'database_type': 'postgresql'
+                        },
+                        'last_checked': datetime.now(timezone.utc).isoformat()
+                    }
+                except Exception as pg_error:
+                    return {
+                        'status': 'warning',
+                        'message': f"PostgreSQL search test failed: {str(pg_error)}",
+                        'details': {'error': str(pg_error), 'database_type': 'postgresql'},
+                        'last_checked': datetime.now(timezone.utc).isoformat()
+                    }
             
-            # Count indexed posts
-            indexed_count = db.session.execute(
-                text("SELECT COUNT(*) FROM post_search_fts")
-            ).scalar()
-            
-            # Count published posts
-            published_count = db.session.query(Post).filter(
-                Post.status == 'published'
-            ).count()
-            
-            # Test search functionality
-            test_query_time = None
-            try:
-                test_start = time.time()
-                db.session.execute(
-                    text("SELECT COUNT(*) FROM post_search_fts WHERE post_search_fts MATCH 'test'")
+            elif is_sqlite:
+                # SQLite FTS check
+                # Check if FTS table exists
+                fts_exists = db.session.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='post_search_fts'")
                 ).scalar()
-                test_query_time = time.time() - test_start
-            except Exception as search_error:
+                
+                if not fts_exists:
+                    return {
+                        'status': 'warning',
+                        'message': "Search index table does not exist (SQLite FTS not initialized)",
+                        'details': {'fts_table_exists': False, 'database_type': 'sqlite'},
+                        'last_checked': datetime.now(timezone.utc).isoformat()
+                    }
+                
+                # Count indexed posts
+                indexed_count = db.session.execute(
+                    text("SELECT COUNT(*) FROM post_search_fts")
+                ).scalar()
+                
+                # Count published posts
+                published_count = db.session.query(Post).filter(
+                    Post.status == 'published'
+                ).count()
+                
+                # Test search functionality
+                test_query_time = None
+                try:
+                    test_start = time.time()
+                    db.session.execute(
+                        text("SELECT COUNT(*) FROM post_search_fts WHERE post_search_fts MATCH 'test'")
+                    ).scalar()
+                    test_query_time = time.time() - test_start
+                except Exception as search_error:
+                    return {
+                        'status': 'critical',
+                        'message': f"Search query failed: {str(search_error)}",
+                        'details': {
+                            'indexed_count': indexed_count,
+                            'published_count': published_count,
+                            'search_error': str(search_error),
+                            'database_type': 'sqlite'
+                        },
+                        'last_checked': datetime.now(timezone.utc).isoformat()
+                    }
+                
+                check_time = time.time() - start_time
+                
+                # Calculate index coverage
+                coverage = (indexed_count / published_count * 100) if published_count > 0 else 0
+                
+                # Determine status
+                if coverage < 90:
+                    status = 'warning'
+                    message = f"Search index coverage is low ({coverage:.1f}%)"
+                elif test_query_time and test_query_time > 0.5:
+                    status = 'warning'
+                    message = f"Search queries are slow ({test_query_time:.2f}s)"
+                else:
+                    status = 'healthy'
+                    message = "Search index is functioning properly"
+                
                 return {
-                    'status': 'critical',
-                    'message': f"Search query failed: {str(search_error)}",
+                    'status': status,
+                    'message': message,
                     'details': {
                         'indexed_count': indexed_count,
                         'published_count': published_count,
-                        'search_error': str(search_error)
+                        'coverage_percentage': round(coverage, 1),
+                        'test_query_time': round(test_query_time, 3) if test_query_time else None,
+                        'check_time': round(check_time, 3),
+                        'database_type': 'sqlite'
                     },
                     'last_checked': datetime.now(timezone.utc).isoformat()
                 }
-            
-            check_time = time.time() - start_time
-            
-            # Calculate index coverage
-            coverage = (indexed_count / published_count * 100) if published_count > 0 else 0
-            
-            # Determine status
-            if coverage < 90:
-                status = 'warning'
-                message = f"Search index coverage is low ({coverage:.1f}%)"
-            elif test_query_time and test_query_time > 0.5:
-                status = 'warning'
-                message = f"Search queries are slow ({test_query_time:.2f}s)"
             else:
-                status = 'healthy'
-                message = "Search index is functioning properly"
-            
-            return {
-                'status': status,
-                'message': message,
-                'details': {
-                    'indexed_count': indexed_count,
-                    'published_count': published_count,
-                    'coverage_percentage': round(coverage, 1),
-                    'test_query_time': round(test_query_time, 3) if test_query_time else None,
-                    'check_time': round(check_time, 3)
-                },
-                'last_checked': datetime.now(timezone.utc).isoformat()
-            }
+                return {
+                    'status': 'warning',
+                    'message': f"Unknown database type: {db_url}",
+                    'details': {'database_url': db_url},
+                    'last_checked': datetime.now(timezone.utc).isoformat()
+                }
             
         except Exception as e:
             if self.app:
@@ -269,6 +322,9 @@ class SystemHealthMonitor:
                 }
             
             start_time = time.time()
+            status = 'warning'
+            message = "Email service check incomplete"
+            api_test_time = 0
             
             # Test Resend API connectivity with a simple API call
             try:
@@ -287,21 +343,29 @@ class SystemHealthMonitor:
                     status = 'warning'
                     message = f"Email service responded with status {response.status_code}"
                 
-            except requests.exceptions.RequestException as e:
+            except ImportError:
+                status = 'warning'
+                message = "Requests library not available for email service check"
+                api_test_time = time.time() - start_time
+            except Exception as e:
                 status = 'warning'
                 message = f"Email service connection error: {str(e)}"
                 api_test_time = time.time() - start_time
             
             # Get recent email statistics
-            recent_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
-            recent_subscriptions = db.session.query(NewsletterSubscription).filter(
-                NewsletterSubscription.subscribed_at >= recent_cutoff
-            ).count()
-            
-            confirmed_subscriptions = db.session.query(NewsletterSubscription).filter(
-                NewsletterSubscription.is_confirmed == True,
-                NewsletterSubscription.is_active == True
-            ).count()
+            try:
+                recent_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+                recent_subscriptions = db.session.query(NewsletterSubscription).filter(
+                    NewsletterSubscription.subscribed_at >= recent_cutoff
+                ).count()
+                
+                confirmed_subscriptions = db.session.query(NewsletterSubscription).filter(
+                    NewsletterSubscription.is_confirmed == True,
+                    NewsletterSubscription.is_active == True
+                ).count()
+            except Exception as db_error:
+                recent_subscriptions = 0
+                confirmed_subscriptions = 0
             
             return {
                 'status': status,
@@ -315,6 +379,16 @@ class SystemHealthMonitor:
                 'last_checked': datetime.now(timezone.utc).isoformat()
             }
             
+        except Exception as e:
+            if self.app:
+                self.app.logger.error(f"Email service health check failed: {str(e)}")
+            
+            return {
+                'status': 'critical',
+                'message': f"Email service check failed: {str(e)}",
+                'details': {'error': str(e), 'configured': False},
+                'last_checked': datetime.now(timezone.utc).isoformat()
+            }
         except Exception as e:
             if self.app:
                 self.app.logger.error(f"Email service health check failed: {str(e)}")

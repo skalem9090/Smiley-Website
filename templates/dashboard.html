@@ -795,7 +795,9 @@
                   ${feeds.details ? `
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     ${feeds.details.rss_success !== undefined ? `<div>RSS: ${feeds.details.rss_success ? '✅' : '❌'}${feeds.details.rss_generation_time ? ` (${feeds.details.rss_generation_time}s)` : ''}</div>` : ''}
+                    ${feeds.details.rss_error ? `<div style="color: #dc2626; font-size: 0.8rem; margin-left: 1rem;">Error: ${feeds.details.rss_error}</div>` : ''}
                     ${feeds.details.atom_success !== undefined ? `<div>Atom: ${feeds.details.atom_success ? '✅' : '❌'}${feeds.details.atom_generation_time ? ` (${feeds.details.atom_generation_time}s)` : ''}</div>` : ''}
+                    ${feeds.details.atom_error ? `<div style="color: #dc2626; font-size: 0.8rem; margin-left: 1rem;">Error: ${feeds.details.atom_error}</div>` : ''}
                     ${feeds.details.total_time !== undefined ? `<div>Total Time: ${feeds.details.total_time}s</div>` : ''}
                   </div>
                   ` : ''}
