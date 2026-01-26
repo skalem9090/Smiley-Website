@@ -719,8 +719,8 @@
             const components = health.components;
             
             let healthHTML = `
-              <div class="health-overview" style="margin-bottom: 2rem; padding: 1rem; background: ${getStatusColor(health.overall_status)}; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
-                <h4 style="margin: 0 0 0.5rem 0;">Overall Status: ${health.overall_status.toUpperCase()}</h4>
+              <div class="health-overview" style="margin-bottom: 2rem; padding: 1rem; background: ${getStatusColor(health.overall_status || 'unknown')}; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                <h4 style="margin: 0 0 0.5rem 0;">Overall Status: ${(health.overall_status || 'unknown').toUpperCase()}</h4>
                 <p style="margin: 0; font-size: 0.9rem;">
                   Last checked: ${new Date(health.check_timestamp).toLocaleString()}<br>
                   Check duration: ${health.check_duration}s
