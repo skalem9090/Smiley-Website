@@ -843,6 +843,11 @@
     
     // Helper functions for health status display
     function getStatusColor(status) {
+      // Normalize status - handle both 'operational' and 'healthy'
+      if (!status) status = 'unknown';
+      const normalizedStatus = status.toLowerCase();
+      const mappedStatus = normalizedStatus === 'operational' ? 'healthy' : normalizedStatus;
+      
       // Check if dark mode is active
       const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
       
@@ -854,7 +859,7 @@
           'critical': 'rgba(239, 68, 68, 0.25)',
           'unknown': 'rgba(100, 100, 100, 0.25)'
         };
-        return darkColors[status] || darkColors.unknown;
+        return darkColors[mappedStatus] || darkColors.unknown;
       } else {
         // Light mode colors
         const lightColors = {
@@ -863,18 +868,23 @@
           'critical': '#ffe4e0',
           'unknown': '#f3f4f6'
         };
-        return lightColors[status] || lightColors.unknown;
+        return lightColors[mappedStatus] || lightColors.unknown;
       }
     }
     
     function getStatusIcon(status) {
+      // Normalize status - handle both 'operational' and 'healthy'
+      if (!status) status = 'unknown';
+      const normalizedStatus = status.toLowerCase();
+      const mappedStatus = normalizedStatus === 'operational' ? 'healthy' : normalizedStatus;
+      
       const icons = {
         'healthy': '✅',
         'warning': '⚠️',
         'critical': '❌',
         'unknown': '❓'
       };
-      return icons[status] || icons.unknown;
+      return icons[mappedStatus] || icons.unknown;
     }
     
     // Handle status selection changes
