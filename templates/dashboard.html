@@ -734,15 +734,17 @@
             if (components.database) {
               const db = components.database;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(db.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                <div class="health-card" style="background: ${getStatusColor(db.status || 'unknown')}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
                   <h4 style="margin: 0 0 1rem 0;">Database</h4>
-                  <div class="status-indicator">${getStatusIcon(db.status)} ${db.message}</div>
+                  <div class="status-indicator">${getStatusIcon(db.status || 'unknown')} ${db.message || 'Status unknown'}</div>
+                  ${db.details ? `
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
-                    <div>Query Time: ${db.details.query_time}s</div>
-                    <div>Posts: ${db.details.post_count}</div>
-                    <div>Comments: ${db.details.comment_count}</div>
-                    <div>Subscriptions: ${db.details.subscription_count}</div>
+                    ${db.details.query_time !== undefined ? `<div>Query Time: ${db.details.query_time}s</div>` : ''}
+                    ${db.details.post_count !== undefined ? `<div>Posts: ${db.details.post_count}</div>` : ''}
+                    ${db.details.comment_count !== undefined ? `<div>Comments: ${db.details.comment_count}</div>` : ''}
+                    ${db.details.subscription_count !== undefined ? `<div>Subscriptions: ${db.details.subscription_count}</div>` : ''}
                   </div>
+                  ` : ''}
                 </div>
               `;
             }
@@ -751,13 +753,19 @@
             if (components.search_index) {
               const search = components.search_index;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(search.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                <div class="health-card" style="background: ${getStatusColor(search.status || 'unknown')}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
                   <h4 style="margin: 0 0 1rem 0;">Search Index</h4>
-                  <div class="status-indicator">${getStatusIcon(search.status)} ${search.message}</div>
+                  <div class="status-indicator">${getStatusIcon(search.status || 'unknown')} ${search.message || 'Status unknown'}</div>
+                  ${search.details ? `
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
-                    <div>Coverage: ${search.details.coverage_percentage}%</div>
-                    <div>Indexed: ${search.details.indexed_count}/${search.details.published_count}</div>
+                    ${search.details.coverage_percentage !== undefined ? `<div>Coverage: ${search.details.coverage_percentage}%</div>` : ''}
+                    ${search.details.indexed_count !== undefined && search.details.published_count !== undefined ? `<div>Indexed: ${search.details.indexed_count}/${search.details.published_count}</div>` : ''}
                     ${search.details.test_query_time ? `<div>Query Time: ${search.details.test_query_time}s</div>` : ''}
+                  </div>
+                  ` : ''}
+                </div>
+              `;
+            }
                   </div>
                 </div>
               `;
@@ -767,14 +775,16 @@
             if (components.email_service) {
               const email = components.email_service;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(email.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                <div class="health-card" style="background: ${getStatusColor(email.status || 'unknown')}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
                   <h4 style="margin: 0 0 1rem 0;">Email Service</h4>
-                  <div class="status-indicator">${getStatusIcon(email.status)} ${email.message}</div>
+                  <div class="status-indicator">${getStatusIcon(email.status || 'unknown')} ${email.message || 'Status unknown'}</div>
+                  ${email.details ? `
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
-                    <div>Configured: ${email.details.configured ? 'Yes' : 'No'}</div>
+                    ${email.details.configured !== undefined ? `<div>Configured: ${email.details.configured ? 'Yes' : 'No'}</div>` : ''}
                     ${email.details.api_test_time ? `<div>API Response: ${email.details.api_test_time}s</div>` : ''}
                     ${email.details.active_subscriptions !== undefined ? `<div>Active Subscribers: ${email.details.active_subscriptions}</div>` : ''}
                   </div>
+                  ` : ''}
                 </div>
               `;
             }
@@ -783,14 +793,16 @@
             if (components.feed_generation) {
               const feeds = components.feed_generation;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(feeds.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                <div class="health-card" style="background: ${getStatusColor(feeds.status || 'unknown')}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
                   <h4 style="margin: 0 0 1rem 0;">Feed Generation</h4>
-                  <div class="status-indicator">${getStatusIcon(feeds.status)} ${feeds.message}</div>
+                  <div class="status-indicator">${getStatusIcon(feeds.status || 'unknown')} ${feeds.message || 'Status unknown'}</div>
+                  ${feeds.details ? `
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
-                    <div>RSS: ${feeds.details.rss_success ? '✅' : '❌'} (${feeds.details.rss_generation_time}s)</div>
-                    <div>Atom: ${feeds.details.atom_success ? '✅' : '❌'} (${feeds.details.atom_generation_time}s)</div>
-                    <div>Total Time: ${feeds.details.total_time}s</div>
+                    ${feeds.details.rss_success !== undefined ? `<div>RSS: ${feeds.details.rss_success ? '✅' : '❌'}${feeds.details.rss_generation_time ? ` (${feeds.details.rss_generation_time}s)` : ''}</div>` : ''}
+                    ${feeds.details.atom_success !== undefined ? `<div>Atom: ${feeds.details.atom_success ? '✅' : '❌'}${feeds.details.atom_generation_time ? ` (${feeds.details.atom_generation_time}s)` : ''}</div>` : ''}
+                    ${feeds.details.total_time !== undefined ? `<div>Total Time: ${feeds.details.total_time}s</div>` : ''}
                   </div>
+                  ` : ''}
                 </div>
               `;
             }
@@ -799,15 +811,17 @@
             if (components.file_system) {
               const fs = components.file_system;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(fs.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                <div class="health-card" style="background: ${getStatusColor(fs.status || 'unknown')}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
                   <h4 style="margin: 0 0 1rem 0;">File System</h4>
-                  <div class="status-indicator">${getStatusIcon(fs.status)} ${fs.message}</div>
+                  <div class="status-indicator">${getStatusIcon(fs.status || 'unknown')} ${fs.message || 'Status unknown'}</div>
+                  ${fs.details ? `
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
-                    <div>Disk Usage: ${fs.details.disk_usage_percent}%</div>
-                    <div>Free Space: ${fs.details.disk_free_gb}GB</div>
-                    <div>Database: ${fs.details.database_size_mb}MB</div>
-                    <div>Upload Files: ${fs.details.uploaded_files_count}</div>
+                    ${fs.details.disk_usage_percent !== undefined ? `<div>Disk Usage: ${fs.details.disk_usage_percent}%</div>` : ''}
+                    ${fs.details.disk_free_gb !== undefined ? `<div>Free Space: ${fs.details.disk_free_gb}GB</div>` : ''}
+                    ${fs.details.database_size_mb !== undefined ? `<div>Database: ${fs.details.database_size_mb}MB</div>` : ''}
+                    ${fs.details.uploaded_files_count !== undefined ? `<div>Upload Files: ${fs.details.uploaded_files_count}</div>` : ''}
                   </div>
+                  ` : ''}
                 </div>
               `;
             }
@@ -816,15 +830,17 @@
             if (components.performance) {
               const perf = components.performance;
               healthHTML += `
-                <div class="health-card" style="background: ${getStatusColor(perf.status)}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
+                <div class="health-card" style="background: ${getStatusColor(perf.status || 'unknown')}; padding: 1rem; border-radius: 6px; border: 2px solid rgba(100, 100, 100, 0.3);">
                   <h4 style="margin: 0 0 1rem 0;">Performance</h4>
-                  <div class="status-indicator">${getStatusIcon(perf.status)} ${perf.message}</div>
+                  <div class="status-indicator">${getStatusIcon(perf.status || 'unknown')} ${perf.message || 'Status unknown'}</div>
+                  ${perf.details ? `
                   <div style="margin-top: 1rem; font-size: 0.85rem;">
                     ${perf.details.cpu_percent !== undefined ? `<div>CPU: ${perf.details.cpu_percent}%</div>` : ''}
                     ${perf.details.memory_percent !== undefined ? `<div>Memory: ${perf.details.memory_percent}%</div>` : ''}
                     ${perf.details.process_memory_mb !== undefined ? `<div>App Memory: ${perf.details.process_memory_mb}MB</div>` : ''}
                     ${perf.details.recent_searches !== undefined ? `<div>Recent Searches: ${perf.details.recent_searches}</div>` : ''}
                   </div>
+                  ` : ''}
                 </div>
               `;
             }
